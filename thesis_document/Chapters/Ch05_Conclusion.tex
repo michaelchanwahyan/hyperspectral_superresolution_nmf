@@ -1,0 +1,40 @@
+\chapter{Conclusion and Discussion}
+With the increasing demand for faster algorithms in the big data era, massive
+data processing technique gains more attraction in the field of computation,
+signal processing and data science.
+This thesis reviewed a general framework of alternating optimization (AO) on
+solving the hyperspectral super-resolution (HSR) problem, which is a kind of
+low-rank matrix factorization (MF) problem and is practically attractive in
+remote sensing.
+Specifically we explored the use of Block Coordinate Descent (BCD) to tackle
+the nonconvex HSR problem in two aspects.
+The first aspect is the use of Exact BCD and Inexact BCD (whom we proposed as
+ALternating Gradient-based Optimization "ALGO") to solve the HSR problem.
+Results showed that HSR via ALGO is more competitive than HSR via Exact BCD in
+terms of both recovery accuracy and algorithm efficiency, which encouraged us
+to focus on Inexact BCD in the remaining of the thesis.
+The second aspect is the use of various inexact gradient update rules in
+solving each subblock problems in the BCD as a practical and intuitive way to
+reduce complexity.
+Results showed that proximal type gradient methods are generally better.
+Proximal Gradient Method (PG) and Fast Proximal Gradient Method (FISTA) of
+this type were shown to be more competitive in terms of recovery accuracy.
+Frank Wolfe Method (FW) is also competitive in terms of algorithm efficiency
+when the image size and model order are large.
+
+We also compared ALGO with two state-of-the-art HSR algorithms, namely FUMI
+and CNMF.
+ALGO whom we implemented as a 1-step gradient update in solving each subblock
+problem generally possesses comparable recovery performance as FUMI and CNMF
+have.
+Regarding the computation time, ALGO also demonstrated to be significantly
+faster than FUMI even when the data size is very large.
+
+As a future direction, ALGO has great potential in other remote sensing and
+machine learning applications as long as we can formulate their problems in a
+block-separable manner.
+From a practical point of view, ALGO can be applied to existing MF type
+problems whose first order information is easily computable.
+The advantage of ALGO in terms of computation efficiency can be revealed when
+the data size at hand grows to a very large scale and when higher order
+methods become impractical.

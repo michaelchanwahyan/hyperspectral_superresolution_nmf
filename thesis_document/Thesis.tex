@@ -1,0 +1,398 @@
+%% ----------------------------------------------------------------
+%% Thesis.tex -- MAIN FILE (the one that you compile with LaTeX)
+%% ----------------------------------------------------------------
+
+% Set up the document
+% Location of the graphics files (set up for graphics to be in PDF format)
+% Use the "Thesis" style, based on the ECS Thesis style by Steve Gunn
+\documentclass[a4paper, 11pt, oneside]{Thesis}
+\renewcommand{\familydefault}{\sfdefault}
+\graphicspath{Figures/}
+
+% Include any extra LaTeX packages required
+% Use the "Natbib" style for the referen:wqces in the Bibliography
+% Needed for the "comment" environment to make LaTeX comments
+% Allows "\bvec{}" and "\buvec{}" for "blackboard" style bold vectors in maths
+% Colours hyperlinks in blue, but this can be distracting if there are many
+% links.
+\usepackage[square, numbers, comma, sort&compress]{natbib}
+\usepackage{verbatim}
+\usepackage{vector}
+\usepackage{bm}
+\usepackage{mathrsfs}
+\usepackage{amsmath}
+\usepackage{amssymb,array,bm,calc,multirow,diagbox,mathtools}
+
+\usepackage{hhline}
+
+\usepackage{algorithm,algpseudocode}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+%\usepackage[ruled, vlined, linesnumbered]{algorithm2e}
+
+\usepackage{graphicx,esint,color}
+\usepackage{adjustbox}
+\usepackage{tikz}
+
+\usepackage{boondox-calo}
+
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations}
+\usetikzlibrary{shapes}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{shapes.multipart}
+\usetikzlibrary{calc}
+\usetikzlibrary{arrows, decorations.markings}
+% for double arrows a la chef
+% adapt line thickness and line width, if needed
+\tikzstyle{vecArrow} = [thick, decoration={markings,mark=at position
+    1 with {\arrow[semithick]{open triangle 60}}},
+    double distance = 1.4pt, shorten >= 5.5pt,
+    preaction       = {decorate},
+    postaction      = {draw,line width=1.4pt,  gray,shorten >= 4.5pt}]
+\tikzstyle{innerWhite} = [semithick, white,line width=1.4pt, shorten >= 4.5pt]
+\usepgflibrary{decorations.pathmorphing}
+\usepgflibrary{decorations.pathreplacing}
+%\hypersetup{urlcolor=blue, colorlinks=true}
+\hypersetup{colorlinks,
+            citecolor=black,
+            linkcolor=black,
+            urlcolor=black,
+            colorlinks=true}
+%
+\newcommand{\R}{\mathbb R}
+\newcommand{\yH}{\bm y_\text H}
+\newcommand{\yM}{\bm y_\text M}
+\newcommand{\YH}{\bm Y_\text H}
+\newcommand{\YM}{\bm Y_\text M}
+\newcommand{\Tr}{^\top}%\newcommand{\Tr}{^\text T}
+\newcommand{\Fr}{_\text F}
+\newcommand{\iter}[1]{^{(#1)}}
+\newcommand{\vectxt}[1]{\texttt{vec}{(#1)}}
+\newcommand{\sgn}[1]{\texttt{sgn}{(#1)}}
+\newcommand{\thtxt}{^\text{th}}
+\newcommand{\inv}{^{-1}}
+\newcommand{\etal}{\textit{et al.}\;}
+\newcommand{\ie}{i.e.,\,}
+\usepackage{stackengine}
+\newcommand{\delequal}{\mathrel{\ensurestackMath{\stackon[1pt]{=}{\scriptstyle\Delta}}}}
+\usepackage{colortbl}
+\usepackage[flushleft]{threeparttable} % for footnote in table
+
+\setcounter{tocdepth}{2}
+
+\captionsetup{font=normalsize,labelfont={bf,sf}}
+\captionsetup[sub]{font=Large,labelfont={bf,sf}}
+
+% ---------------------------------- %
+% Settings for Importing Matlab Code %
+% ---------------------------------- %
+%\usepackage[utf8]{inputenc}
+%\usepackage{fontspec}
+\usepackage{listings}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codeblue}{rgb}{0,0,1}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+%\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{backcolour}{rgb}{1,1,1}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor   = \color{backcolour},
+    commentstyle      = \color{codegreen},
+    keywordstyle      = \color{magenta},
+    numberstyle       = \tiny\color{codeblue},
+    stringstyle       = \color{codepurple},
+    basicstyle        = \footnotesize,
+    breakatwhitespace = false,
+    breaklines        = false,
+    captionpos        = b,
+    keepspaces        = true,
+    numbers           = left,
+    numbersep         = 5pt,
+    showspaces        = false,
+    showstringspaces  = false,
+    showtabs          = false,
+    tabsize           = 2
+}
+\lstset{style=mystyle}
+\lstset{basicstyle=\linespread{1.2}\footnotesize\ttfamily}
+% ----------------------------------------- %
+% End of Settings for Importing Matlab Code %
+% ----------------------------------------- %
+
+
+
+%% ----------------------------------------------------------------
+\begin{document}
+% Begin Roman style (i, ii, iii, iv...) page numbering
+\frontmatter
+
+% Set up the Title Page
+\title  {Hyperspectral Super-resolution Using Matrix Factorization}
+\authors  {\texorpdfstring
+            %{\href{your web site or email address}{CHAN, Chun Hei}}
+            {\textbf{CHAN, Chun Hei}}
+            {Author Name}
+            }
+\addresses  {\groupname\\\deptname\\\univname}
+% Do not change this here, instead these must be set in the "Thesis.cls" file,
+% please look through it instead
+\date       {\today}
+\subject    {}
+\keywords   {}
+
+\maketitle
+%% ----------------------------------------------------------------
+
+% It is better to have smaller font and larger
+% line spacing than the other way round
+\setstretch{1.3}
+
+% Define the page headers using the FancyHdr
+% package and set up for one-sided printing
+\fancyhead{}                      % Clears all page headers and footers
+\rhead{\thepage}                  % Sets the right side header
+                                  % to show the page number
+\lhead{}                          % Clears the left side page header
+
+\pagestyle{fancy}                 % Finally, use the "fancy" page style
+                                  % to implement the FancyHdr headers
+
+% The Abstract Page
+\addtotoc{Abstract}               % Add "Abstract" page entry to the Contents
+\abstract{
+\addtocontents{toc}{\vspace{1em}} % Add a gap in the Contents, for aesthetics
+
+% The Thesis Abstract is written here (and usually kept to
+% just this page). The page is kept centered vertically so
+% can expand into the blank space above the title too\ldots
+Hyperspectral imaging systems have recently drawn significant interest in
+areas such as computer vision, signal processing, and remote sensing because
+of their ability to provide rich information in both spectral and spatial
+domain of a scene.
+These imaging systems acquire spectral images from far infrared to visible
+range with many spectral bands, resulting in images that have a lot more
+spectral bands than that of the conventional multispectral images.
+Due to hardware limitation, spectral cameras with high resolution in both
+spectral and spatial domain are uncommon, especially in the application of
+remote satellite imagery.
+The sensors are usually called hyperspectral camera and multispectral camera.
+%The sensors are usually hyperspectral camera and multispectral camera, which
+%capture images with high spectral and low spatial resolution, and vice versa,
+%respectively.
+
+Hyperspectral super-resolution is a problem of fusing a hyperspectral image
+and a multispectral image of the same scene to form a full spectral image
+having the high spectral resolution of the former and high spatial resolution
+of the latter.
+In the existing methods, some of them can be classified as matrix
+factorization-based methods in which the desired full spectral image can be
+expressed as the product of an endmember matrix and an abundance matrix.
+The objective of this family of methods is to estimate the endmember-abundance
+matrix pair solely from the hyperspectral and multispectral observations.
+Conventionally, matrix factorization requires alternating optimization with
+respect to each factor matrix individually.
+This makes the hyperspectral super-resolution problem an iterative procedure
+of solving subproblems with respect to the endmember matrix and abundance
+matrix alternatingly.
+
+In this thesis, some matrix factorization-based formulations of the
+hyperspectral super-resolution problem are investigated.
+In each of the investigation there are two major focus.
+The first focus is on the effect of exactness of solving the subproblems
+during alternating optimization against the fusion and unmixing performance,
+measured by both reconstruction accuracy of full spectral images and the
+unmixing accuracy of the endmember-abundnace matrix pair.
+The second focus is on the fusion and unmixing performance using a variety of
+first order optimization methods for solving the subproblems.
+
+The contribution of this thesis is that a framework of alternating
+optimization on matrix factorization is developed.
+Simulation results show that by inexactly solving the subproblems, the
+hyperspectral super-resolution problem can still be solved to comparable
+accuracy but with much less computation time than the state of the art.
+}
+
+\clearpage
+\begin{centering}
+\includegraphics[width=0.98\linewidth]{./fig/abstract_chi/Abstract_chi}
+\end{centering}
+
+\clearpage                        % Abstract ended, start a new page
+%% ----------------------------------------------------------------
+
+\setstretch{1.3}                  % Reset the line-spacing to 1.3 for
+                                  % body text (if it has changed)
+
+% The Acknowledgements page, for thanking everyone
+\acknowledgements{
+\addtocontents{toc}{\vspace{1em}} % Add a gap in the Contents, for aesthetics
+
+%The acknowledgements and the people to thank go here, don't forget to include
+%your project advisor\ldots
+~\\
+~\\
+~\\
+~\\
+First of all, I would like to greatly thank my supervisor, Prof. Wing-Kin Ma,
+for his guidance and advice in my research throughout the past few years in
+which I have received great amount of freedom, patience, tolerance and
+opportunities in learning and exploring signal processing and remote sensing.
+
+I would also like to thank all my friends in the Digital Signal Processing and
+Speech Technology Laboratory (DSPST Lab) including
+Dr. Jiaxian Pan,
+Prof. Xiaoxiao Wu,
+Prof. Xiao Fu,
+Mr. Hoi To Wai,
+Dr. Yun Liu,
+Dr. Ran Cai,
+Dr. Wai Man Ng,
+Mr. Shing Yu,
+Dr. Yu Ting Yeung,
+Dr. Wang Kong Lam,
+Ms. Lufei Gao,
+Mr. Chun Hoy Wong,
+Mr. Man Wai Un,
+Mr. Ruiyuan Wu,
+Mr. Mingjie Shao,
+Mr. Siyuan Feng,
+Ms. Ying Qin,
+Ms. Qiong Wu,
+Mr. Yatao Liu,
+Mr. Yuzhong Wu,
+Ms. Man Ling Sung,
+Mr. Shuiyang Mao,
+Mr. Xiongwei Wu and
+Mr. King Hang Matthew Ma
+for their encouragement and helpful discussions in technical materials,
+research-related subjects and computation facilities issues.
+Especially, I must thank Mr. Hoi To Wai, Prof. Xiao Fu and Mr. Ruiyuan Wu for
+all of the accademic interaction and support in many aspects.
+Their kind support have been helping me a lot in overcoming the difficulties
+in my research.
+Besides, I would like to thank Dr. Yu Ting Yeung for guiding me using Linux as
+the core scientific computation platform which is vital to processing and
+maintaining all those massive experiments in the research.
+
+Lastly, I would like to thank our laboratory technician, Mr. Arthur Luk, for
+his unlimited support to my studies and the establishment of many high-speed
+computation servers which are the keystone of the entire thesis research.
+}
+\clearpage                        % End of the Acknowledgements
+%% ----------------------------------------------------------------
+
+\pagestyle{fancy}                 % The page style headers have been "empty"
+                                  % all this time, now use the "fancy" headers
+                                  % as defined before to bring them back
+
+
+%% ----------------------------------------------------------------
+\lhead{\emph{Contents}}           % Set the left side page header
+                                  % to "Contents"
+\tableofcontents                  % Write out the Table of Contents
+
+%% ----------------------------------------------------------------
+\lhead{\emph{List of Figures}}    % Set the left side page header
+                                  % to "List of Figures"
+%\listoffigures                    % Write out the List of Figures
+
+%% ----------------------------------------------------------------
+\lhead{\emph{List of Tables}}     % Set the left side page header
+                                  % to "List of Tables"
+%\listoftables                     % Write out the List of Tables
+
+%% ----------------------------------------------------------------
+\lhead{\emph{List of Algorithms}} % Set the left side page header
+                                  % to "List of Algorithms"
+\listofalgorithms                 % Write out hte List of Algorithms
+%\addcontentsline{toc}{chapter}{List of Algorithms}
+
+%% ----------------------------------------------------------------
+\setstretch{1.5}                  % Set the line spacing to 1.5, this makes
+
+%% ----------------------------------------------------------------
+                                  % the following tables easier to read
+%%%%%     \clearpage                        % Start a new page
+%%%%%     \lhead{\emph{Abbreviations}}      % Set the left side page header
+%%%%%                                       % to "Abbreviations"
+%%%%%     \listofsymbols{ll}                % Include a list of Abbreviations
+%%%%%                                       % (a table of two columns)
+%%%%%     {
+%%%%%     \textbf{LAH} & \textbf{L}ist \textbf{A}bbreviations \textbf{H}ere \\
+%%%%%     
+%%%%%     }
+
+\clearpage                        %Start a new page
+%%%%%     %\lhead{\emph{Symbols}}            % Set the left side page header to "Symbols"
+%\lhead{\emph{Hyperspectral Super-resolution Using Matrix Factorization}}
+\lhead{\leftmark}
+%\lhead{\thechapter}
+%%%%%     \listofnomenclature{lll}          % Include a list of Symbols
+%%%%%                                       % (a three column table)
+%%%%%     {
+%%%%%     % symbol & name & unit \\
+%%%%%     $a$ & distance & m \\
+%%%%%     $P$ & power & W (Js$^{-1}$) \\
+%%%%%     & & \\ % Gap to separate the Roman symbols from the Greek
+%%%%%     $\omega$ & angular frequency & rads$^{-1}$ \\
+%%%%%     }
+
+\mainmatter	                      % Begin normal, numeric (1,2,3...)
+                                  % page numbering
+\pagestyle{fancy}                 % Return the page headers back to
+                                  % the "fancy" style
+
+% =================================== %
+% added by Michael to fix the "Line   %
+% Under Chapter On Top Of Page" issue %
+% =================================== %
+%\fancyhf{}
+%\fancyhead[ER]{\nouppercase\leftmark}
+%\fancyhead[OL]{\nouppercase\rightmark}
+%\fancyhead[ER,OL]{\thepage}
+%\fancyhead[RO,RE]{\rightmark}
+
+% Include the chapters of the thesis, as separate files
+% Just uncomment the lines as you write the chapters
+
+\input{Chapters/Ch01_Introduction} % Introduction
+\input{Chapters/Ch02_HSR_Problems} % HSR Problems and Related Works
+\input{Chapters/Ch03_HSR_by_FOGM}  % The HSR FOGM Algorithm Development
+\input{Chapters/Ch04_Simulations}  % The simulations
+\input{Chapters/Ch05_Conclusion}   % The conclusion
+
+%% ----------------------------------------------------------------
+% Now begin the Appendices, including them as separate files
+
+\addtocontents{toc}{\vspace{2em}} % Add a gap in the Contents, for aesthetics
+
+\appendix                         % Cue to tell LaTeX that the following
+                                  % 'chapters' are Appendices
+
+\input{Appendices/HSR_code}	  % Appendix Title
+
+\input{Appendices/ALL_Results}
+
+%\input{Appendices/AppendixB}      % Appendix Title
+
+%\input{Appendices/AppendixC}      % Appendix Title
+
+\addtocontents{toc}{\vspace{2em}} % Add a gap in the Contents, for aesthetics
+\backmatter
+
+%% ----------------------------------------------------------------
+\label{Bibliography}
+\lhead{\emph{Bibliography}}       % Change the left side page
+                                  % header to "Bibliography"
+\bibliographystyle{unsrtnat}      % Use the "unsrtnat" BibTeX style
+                                  % for formatting the Bibliography
+\bibliography{Bibliography}       % The references (bibliography)
+                                  % information are stored in the
+                                  % file named "Bibliography.bib"
+
+\end{document}                    % The End
+%% ----------------------------------------------------------------
+\grid

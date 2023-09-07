@@ -1,0 +1,1605 @@
+\chapter{HSR with First-Order Gradient Methods (FOGMs)}
+
+In this chapter we discuss an inexact BCD approach to tackle the HSR problem,
+namely ALternating Gradient-based Optimization (ALGO) using FOGMs.
+The organization of this chapter is as follows.
+We first express the subproblems of the HSR problem as convex constrained QP.
+Then we give a review on a few kind of FOGMs that solve this QP.
+After that a traditional algorithm framework that solves the HSR problem by
+exact BCD is presented, followed by our proposed algorithm framework ALGO.
+We also show the specific algorithm implementation of ALGO using each of the
+discussed FOGM at the end of this chapter.
+
+\section{HSR Problem as Convex Constrained QPs}
+The general HSR problem is re-stated below.
+\begin{equation}
+    \begin{array}{cl}
+        \underset{\bm A,\bm S}{\min} &
+        \displaystyle
+        \frac{1}{2} \Vert \YH - \bm A \bm S \bm G \Vert\Fr^2 +
+        \frac{1}{2} \Vert \YM - \bm F \bm A \bm S \Vert\Fr^2 \\
+        \text{s.t.} &
+        \begin{array}{cc}
+            \bm A \in \mathcal A, & \bm S \in \mathcal S.
+        \end{array}
+    \end{array} \tag{$*$}
+    \label{eq:HSR_problem_CH3}
+\end{equation}
+Problem \eqref{eq:HSR_problem_CH3} is separately convex in $\bm S$ and in
+$\bm A$.
+The $\bm S$ and $\bm A$ subproblem of \eqref{eq:HSR_problem_CH3} can be
+expressed as
+\begin{align}
+    &
+    \begin{array}{cl}
+        \underset{\bm S}{\min} &
+        \displaystyle
+        \frac{1}{2} \Vert \YH - \bm A \bm S \bm G \Vert\Fr^2 +
+        \frac{1}{2} \Vert \YM - \bm F \bm A \bm S \Vert\Fr^2 \\
+        \text{s.t.} &
+        \bm S \in \mathcal S,
+    \end{array} \tag{$\eqmathcal S$}
+    \label{eq:HSR_S-subproblem_CH3} \\
+    &
+    \begin{array}{cl}
+        \underset{\bm A}{\min} &
+        \displaystyle
+        \frac{1}{2} \Vert \YH - \bm A \bm S \bm G \Vert\Fr^2 +
+        \frac{1}{2} \Vert \YM - \bm F \bm A \bm S \Vert\Fr^2 \\
+        \text{s.t.} &
+        \bm A \in \mathcal A,
+    \end{array} \tag{$\eqmathcal A$}
+    \label{eq:HSR_A-subproblem_CH3}
+\end{align}
+respectively.
+We see that the objective function of \eqref{eq:HSR_S-subproblem_CH3} and
+\eqref{eq:HSR_A-subproblem_CH3} can be expressed in least squares form using
+the Kronecker product equality
+\begin{equation}
+    \vectxt{\bm P \bm X \bm Q} =
+    \begin{bmatrix} \bm Q\Tr \otimes \bm P \end{bmatrix} \vectxt{\bm X},
+\end{equation}
+where $\bm P \in \R^{m \times n}$; $\bm X \in \R^{n \times p}$;
+$\bm Q \in \R^{p \times q}$; $\otimes$ denotes the Kronecker product and
+$\vectxt{\cdot}$ is an operation that lexicographically concatenate all
+columns of the argument matrix to form a single column.
+\ie $\bm x = \vectxt{\bm X} \in \R^{np}$.
+Let $\bm s=\vectxt{\bm S}$, $\bm a=\vectxt{\bm A}$, $\yH=\vectxt{\YH}$,
+$\yM=\vectxt{\YM}$.
+Then \eqref{eq:HSR_S-subproblem_CH3} and \eqref{eq:HSR_A-subproblem_CH3}
+are equivalent to
+\begin{equation}
+    \begin{array}{cl}
+        \underset{\bm s}{\min} &
+        \displaystyle
+        \frac{1}{2} \Vert \bm y - \bm H_S \bm s \Vert_2^2
+        \\%= \frac{1}{2} \bm s\Tr \bm H_S\Tr \bm H_S \bm s -
+          %\bm y\Tr \bm H_S \bm s + \frac{1}{2} \bm y\Tr \bm y \\
+        \text{s.t.} &
+        \begin{array}{cc}
+            \bm S \in \mathcal S, & \bm s = \vectxt{\bm S}
+        \end{array}
+    \end{array} \tag{$\eqmathcal s$}
+    \label{eq:HSR_s-subproblem}
+\end{equation}
+and
+\begin{equation}
+    \begin{array}{cl}
+        \underset{\bm a}{\min} &
+        \displaystyle
+        \frac{1}{2} \Vert \bm y - \bm H_A \bm a \Vert_2^2
+        \\%= \frac{1}{2} \bm a\Tr \bm H_A\Tr \bm H_A \bm a -
+          %\bm y\Tr \bm H_A \bm a + \frac{1}{2} \bm y\Tr \bm y \\
+        \text{s.t.} &
+        \begin{array}{cc}
+            \bm A \in \mathcal A, & \bm a = \vectxt{\bm A},
+        \end{array} \tag{$\eqmathcal a$}
+    \end{array}
+    \label{eq:HSR_a-subproblem}
+\end{equation}
+respectively, in which
+\[ \bm y   = \begin{bmatrix} \yH \\ \yM \end{bmatrix}; \;\;\;
+   \bm H_S = \begin{bmatrix} \bm G\Tr \otimes \bm A \\
+                             \bm I_L  \otimes \bm{FA} \end{bmatrix}; \;\;\;
+   \bm H_A = \begin{bmatrix} (\bm{SG})\Tr \otimes \bm I_M \\
+                                 \bm S\Tr    \otimes \bm A \end{bmatrix}.\]
+In the remaining chapters, we focus our discussion of FOGMs on the QPs
+\eqref{eq:HSR_s-subproblem} and \eqref{eq:HSR_a-subproblem}.
+To see they are QPs we let $f_s(\bm s)$ and $f_a(\bm a)$ be their
+objective functions and observe that
+\begin{equation}
+    f_s(\bm s)
+    =
+    \displaystyle \frac{1}{2} \bm s\Tr \bm H_S\Tr \bm H_S \bm s -
+    \bm y\Tr \bm H_S \bm s + \frac{1}{2} \bm y\Tr \bm y
+    \label{eq:HSR_s-subproblem_expandedform}
+\end{equation}
+and
+\begin{equation}
+    f_a(\bm a)
+    =
+    \displaystyle \frac{1}{2} \bm a\Tr \bm H_A\Tr \bm H_A \bm a -
+    \bm y\Tr \bm H_A \bm a + \frac{1}{2} \bm y\Tr \bm y
+    \label{eq:HSR_a-subproblem_expandedform}
+\end{equation}
+both attain a quadratic form.
+Also, either using Yokoya \etal's formulation or Wei \etal's formulation, the
+constraints of \eqref{eq:HSR_s-subproblem} and \eqref{eq:HSR_a-subproblem} are
+all convex.
+%To see this, let us consider the constrains in the two formulations one by one.
+Specifically, we may consider:
+\begin{itemize}
+    \item Yokoya \etal's formulation: \newline
+          $\mathcal S=\R_+^{N \times L}$ and $\mathcal A=\R_+^{M \times N}$ so
+          that the constraints on $\bm s$ and $\bm a$ are
+          $\bm s \in \R_+^{NL}$ and $\bm a \in \R_+^{MN}$, respectively, which
+          are convex.
+    \item Wei \etal's formulation: \newline
+          $\mathcal S = \triangle^{N \times L}$ and
+          $\mathcal A \in [0,1]^{M \times N}$.
+          The feasible set of $\bm s=(\bm s_1,\cdots,\bm s_L)$ can be viewed
+          %as $\underbrace{\triangle^{N \times 1} \times \triangle^{N \times 1}
+          %\times \cdots \times \triangle^{N \times 1}}_{\text{union of $L$
+          %unit simplex}}$ and that of $\bm a$ as
+          as $\triangle^N\times\cdots\times\triangle^N$
+          and that of $\bm a$ as $\{\bm x\in\R^{MN}\;\big|\;
+          \bm 0\leq\bm x\leq\bm1\}$, which are also convex.
+\end{itemize}
+For convenience, our discussion on FOGMs towards the HSR problem in later
+sections focuses onto the following problem
+\begin{equation}
+    \begin{array}{cl}
+        \underset{\bm x}{\min} &
+        \displaystyle \frac{1}{2} \bm x\Tr \bm R \bm x + \bm q\Tr \bm x \\
+        \text{s.t.} &
+        \bm x \in \mathcal X,
+    \end{array} \tag{\textbf{\textit{QP}}}
+    \label{eq:QP}
+\end{equation}
+where $\mathcal X$ is a convex set and $\bm R \succeq \bm 0$ is a matrix that
+is symmetric and positive semidefinite (PSD).
+%In this thesis, $\mathcal X \subseteq \R^n$ is relevant to us by having
+%$\mathcal X$ being $\R_+^n$, $[0,1]^n$ or
+%$\triangle^k \times \triangle^k \times \cdots \times \triangle^k$.
+As a preliminary but essential concept, we review the projection onto the
+aforementioned convex sets before the discussion of FOGMs.
+
+\section{Projection onto a Convex Set} \label{sec:projection_onto_cvx_set}
+Let $\bm y \in \R^n$ be an arbitrary point and $\mathcal X \subseteq \R^n$ be
+a convex subset of $\R^n$.
+The problem of projecting $\bm y$ onto $\mathcal X$ can be stated as
+\begin{equation}
+    \hat{\bm y} =
+    \Pi_{\mathcal X}(\bm y) =
+    \arg \; \underset{\bm x \in \mathcal X}{\min}
+            \Vert \bm y - \bm x \Vert_2^2,
+\end{equation}
+where $\Pi$ denotes a projection operator.
+The projection above can be easily solved if
+\begin{itemize}
+    \item [a)]$\mathcal X = \R_+^n$: \newline
+              $\hat{\bm y} = \Pi_{\mathcal X}(\bm y) \;\;\;
+              \Leftrightarrow \;\;\; \hat{y}_i = \max\{0,y_i\}$;%, complexity is $\mathcal O(n)$;
+    \item [b)]$\mathcal X = [0,1]^n$: \newline
+              $\hat{\bm y} = \Pi_{\mathcal X}(\bm y) \;\;\;
+              \Leftrightarrow \;\;\; \hat{y}_i = \min\{1,\max\{0,y_i\}\}$;%, complexity is $\mathcal O(n)$;
+    \item [c)]$\mathcal X = \triangle^n$: \newline
+              $\Pi_{\mathcal X}(\bm y)$ can
+              be computed using the algorithm detailed in \cite{SIMPLEX_PROJ}.%, where the worst case complexity is $\mathcal O(n \log n)$.
+\end{itemize}
+
+\section{Solving QPs with BCD using FOGMs}\label{sec:SOLVE_QPs_BY_FOGMs}
+Let $f(\bm x)$ be the objective function of problem \eqref{eq:QP}.
+Since it is convex and the gradient $\nabla f(\bm x)$ exists everywhere in
+$\mathcal X$, gradient methods can solve for a global optimal solution if we
+allow the algorithm to run for many iterations.
+FOGMs refer to a class of gradient methods that only requires the first-order
+information of $f$, \ie $\nabla f(\bm x)$.
+A general mechanism of FOGMs is described below.
+Usually an arbitrary point $\bm x\iter{0} \in \mathcal X$ is first given.
+Then, at the $k\thtxt$ iteration, when we take a step to the next point
+$\bm x\iter{k+1}$, we choose the descent direction in which $f(\bm x)$
+decreases quickly, which could be the direction opposite to
+$\nabla f(\bm x\iter{k})$ or any directions that guarantee a decrement of
+$f(\bm x)$.
+A sequence of points $\bm x\iter{1},\bm x\iter{2},\cdots$ are recursively
+generated by repeating
+\begin{equation}
+    \bm x\iter{k+1} = \bm x\iter{k} + \gamma \bm d\iter{k},
+    \;\;\;\text{for } k = 0,1,2,\cdots,
+    \label{eq:FOGM_update}
+\end{equation}
+where $\gamma$ is a step-size controlling the movement and $\bm d\iter{k}$ is
+the descent direction at the $k\thtxt$ iteration.
+The stopping criteria is usually measured by checking whenever the objective
+value converges.
+
+Popular FOGMs include Gradient Projection Method (GP), Barzilai-Borwein
+Gradient Projection Method (BBGP) \cite{BARZILAI_BORWEIN_ALGORITHM}, which is
+a special case of GP, Proximal Gradient Method (PG), Fast Proximal Gradient
+Method (also known as Fast Iterative Shrinkage-Thresholding Algorithm (FISTA))
+\cite{NESTEROV_FISTA,A_FAST_ITERA_SHRINK_THRESH_ALGO} and Frank-Wolfe Method
+(FW) \cite{FRANKWOLFE_AN_ALGO_FOR_QUAD_PRGM}.
+In the remaining subsections we review them one by one.
+
+\subsection{Gradient Projection Method (GP)}
+The mechanism of GP is as follows.
+Given a starting point $\bm x\iter{0}$, GP recursively computes
+\begin{equation}
+    \bm x\iter{k+1} =
+    \bm x\iter{k} + \alpha\iter{k} \left(\bm z\iter{k}-\bm x\iter{k}\right),
+    \label{eq:GP_update}
+\end{equation}
+where
+\begin{equation}
+    \bm z\iter{k} =
+    \Pi_{\mathcal X} \left( \bm x\iter{k} -
+                            \beta\iter{k}\nabla f(\bm x\iter{k}) \right).
+    \label{eq:GP_update_2}
+\end{equation}
+Here $\alpha\iter{k} \in [0,1]$ is the stepsize and $\beta\iter{k} \in
+[\beta_{\min},\beta_{\max}]$ is the positive scalar in the $k\thtxt$ iteration.
+%Since $\alpha\iter{k}$ and $\beta\iter{k}$ are bounded, the GP Method is stable.
+Usually $\left( \bm z\iter{k} - \bm x\iter{k} \right)$ in \eqref{eq:GP_update}
+is referred as the descent direction or the feasible direction, where
+$\bm z\iter{k}$ is obtained by moving $\bm x\iter{k}$ along the steepest
+descent direction, \ie take
+\begin{equation}
+    \bm d = - \nabla_{\bm x} f(\bm x\iter{k}),
+\end{equation}
+with an amount controlled by $\beta\iter{k}$, followed by a projection onto the
+convex set $\mathcal X$ so that $\bm z\iter{k}$ must be in the feasible set
+$\mathcal X$.
+In each iteration the decision variable $\bm x\iter{k}$ is updated along a
+feasible direction by using stepsize $\alpha\iter{k}$.
+
+To guarantee the convergence of GP, $\alpha\iter{k}$ and $\beta\iter{k}$
+should be chosen carefully.
+There exists serveral methods choosing them as shown below.
+\begin{itemize}
+    \item [a)] In search of $\alpha\iter{k}$ with fixed $\beta\iter{k}$: \newline
+               Set $\beta\iter{k} = \beta$ for all $k$, two popular strategies
+               are
+               \begin{itemize}
+                   \item exact line search: find $\alpha\iter{k}$ by solving
+                         \begin{equation}
+                             \alpha\iter{k} =
+                             \arg\;\underset{0 \leq \alpha \leq 1}{\min}
+                             f(\bm x\iter{k} + \alpha(\bm z\iter{k} -
+                                                      \bm x\iter{k}));
+                             \label{eq:find_alpha_exlnsrch}
+                         \end{equation}
+                   \item Armijo rule: choose positive scalars $\sigma$ and
+                         $\gamma$ in the interval $(0,1)$ and the initial
+                         stepsize $\alpha$.
+                         Then find for the smallest natural number $i$ such
+                         that the inequality
+                         \begin{equation}
+                             f(\bm x\iter{k}) -
+                             f(\bm x\iter{k} +
+                               \gamma^i\alpha(\bm z\iter{k} - \bm x\iter{k})) \geq
+                             \sigma \gamma^i \alpha
+                             \nabla f(\bm x\iter{k})\Tr
+                             (\bm z\iter{k} - \bm x\iter{k})
+                             \label{eq:find_alpha_Armijo}
+                         \end{equation}
+                         holds.
+                         Once we have $i$, we set $\alpha\iter{k} = \tau^i\alpha$.
+                         In some classical literature, $\sigma$ is preferred
+                         to be close to 0, \ie $\sigma \in [10^{-5},10\inv]$,
+                         while $\beta$ the fixed constant is chosen in
+                         $[0.1,0.5]$.
+                         We can always take $\alpha = 1$ if we do not have a
+                         better choice \cite{NONLINEAR_PRGM}.
+               \end{itemize}
+    \item [b)] In search of $\beta\iter{k}$ with fixed $\alpha\iter{k}$: \newline
+               Set $\alpha\iter{k} = \alpha$ for all $k$ and use Armijo rule
+               to choose $\beta\iter{k}$.
+               To distinguish from \eqref{eq:find_alpha_Armijo} that searches
+               along the feasible direction, the search here is commonly
+               referred as searching by Armijo rule along the projection arc.
+    \item [c)] In search of both $\alpha\iter{k}$ and $\beta\iter{k}$: \newline
+               This is a more sophisticated way with an objective that is to
+               improve the convergence rate.
+               In this case $\alpha\iter{k}$ is found by exact line search or
+               Armijo rule.
+               On the other hand, $\beta\iter{k}$ can be generalized to a
+               symmetric and positive definite (PD) matrix similar to
+               approach in Newton and quasi-Newton methods
+               \cite{MAX_QUAD_HILLCLIMB,
+                     QUASI_NEWTON_METHODS_MOTIV_METHODS}.
+               %diagonal matrix.
+               %This is similar to the approach in Newton and quasi-Newton
+               %Methods under unconstrained optimization problem settings.
+    \item [d)] Fixed $\alpha\iter{k}$ and $\beta\iter{k}$: \newline
+               It is possible to fix both parameters for all $k$ and guarantee
+               the convergence.
+               As will be discussed later that, under some conditions, Proximal
+               Gradient Method (PG) is of this favor.
+\end{itemize}
+In this section we consider only case a) and c).
+
+\subsubsection{In search of $\alpha\iter{k}$ with fixed $\beta\iter{k}$ (case a)}
+In general problem \eqref{eq:find_alpha_exlnsrch} is hard and case-dependent.
+As a compromise, the standard and easy Armijo rule line search is commonly used,
+which involves recursive operations but attains only suboptimal stepsize.
+However when the problem at hand is a QP, there admits a closed form solution
+to \eqref{eq:find_alpha_exlnsrch}.
+Specifically, the solution of $\alpha\iter{k}$ can be derived as follows.
+Let $f(\bm x)$ be the objective of problem \eqref{eq:QP} and
+$g(\alpha) = f(\bm x + \alpha(\bm z-\bm x))$.
+Then we have
+\begin{eqnarray}
+    g(\alpha)
+    & = &
+    f(\bm x + \alpha(\bm z-\bm x)) \nonumber \\
+    & = &
+    \displaystyle
+    \frac{1}{2} \left[ \bm x + \alpha(\bm z-\bm x) \right]\Tr
+    \bm R       \left[ \bm x + \alpha(\bm z-\bm x) \right] +
+    \bm q\Tr    \left[ \bm x + \alpha(\bm z-\bm x) \right] \nonumber \\
+    & = &
+    \displaystyle
+    \frac{1}{2} \alpha^2 (\bm z-\bm x)\Tr \bm R (\bm z-\bm x) +
+    \alpha (\bm z-\bm x)\Tr (\bm R\bm x+\bm q) + f(\bm x), \\
+    \frac{{\rm d} g(\alpha)}{{\rm d} \alpha}
+    & = &
+    \alpha (\bm z-\bm x)\Tr \bm R (\bm z-\bm x) +
+    (\bm z-\bm x)\Tr(\bm R \bm x + \bm q).
+\end{eqnarray}
+Solving $\displaystyle \frac{{\rm d} g(\alpha)}{{\rm d} \alpha} = 0$ gives
+\begin{equation}
+    \alpha^* = \frac{(\bm x-\bm z)\Tr(\bm R\bm x+\bm q)}
+                    {(\bm x-\bm z)\Tr\bm R(\bm x-\bm z)}.
+\end{equation}
+Therefore the parameter $\alpha\iter{k}$ of \eqref{eq:find_alpha_exlnsrch} can
+be computed by
+\begin{equation}
+    \alpha\iter{k} =
+    \min\left \{ \max\left \{
+    \frac{(\bm x\iter{k}-\bm z\iter{k})\Tr(\bm R\bm x\iter{k}+\bm q)}
+    {(\bm x\iter{k}-\bm z\iter{k})\Tr\bm R(\bm x\iter{k}-\bm z\iter{k})} ,
+    0 \right \} , 1 \right \}.
+    \label{eq:alpha_update}
+\end{equation}
+Since exact line search's big O complexity is the same as that of one iteration
+of Armijo rule line search while the computed stepsize is optimal, using exact
+line search is better.
+
+Regarding the convergence rate of GP, it is essentially the same as its
+unconstrained counterpart, \ie the gradient descent method.
+Therefore, in general, GP is a sublinear convergence algorithm where the
+number of iterations required to achieve
+$f(\bm x\iter{k}) - f(\bm x^*) < \epsilon$ is $\mathcal O(1 / \epsilon)$,
+where $\bm x^*$ denotes the optimal solution.
+If $\bm R$ is furthermore positie definite, then GP can achieve linear
+convergence rate \cite{NONLINEAR_PRGM}.
+The GP algorithm that solves problem \eqref{eq:QP} is shown in Algorithm
+\ref{alg:GP_on_QP}.
+
+\subsubsection{In search of $\alpha\iter{k}$ and $\beta\iter{k}$ (case c)}
+BBGP is a special case of GP under this parameter settings.
+Barzilai and Borwein proposed this variation of the gradient descent method in
+the context of unconstrained minimization of a smooth nonlinear function
+\cite{BARZILAI_BORWEIN_ALGORITHM}.
+It can be viewed as an approximation of Newton's method that achieves
+superlinear convergence rate in the ideal case.
+In each iteration of BBGP, the update rule of the decision variable $\bm x$ is
+\begin{subequations}
+\begin{eqnarray}
+    \bm z\iter{k}
+    & = &
+    \Pi_{\mathcal X} \left(
+    \bm x\iter{k} - \underbrace{\xi\iter{k} \bm H\iter{k}}_{\beta\iter{k}}
+                    \nabla f(\bm x\iter{k})
+    \right), \label{eq:BBGP_step1} \\
+    \alpha\iter{k}
+    & = &
+    \arg \; \underset{0\leq\alpha\leq1}{\min}
+    f(\bm x\iter{k} + \alpha(\bm z\iter{k}-\bm x\iter{k})), \\
+    \bm x\iter{k+1}
+    & = &
+    \bm x\iter{k} + \alpha\iter{k}(\bm z\iter{k}-\bm x\iter{k}),
+\end{eqnarray}
+\end{subequations}
+where $\bm H\iter{k}$ is positive definite and is the so-called scaling matrix
+in the $k\thtxt$ iteration.
+In gradient descent methods, $\bm H\iter{k} = \bm I$; in Newton's methods,
+$\bm H\iter{k} = \left[\nabla^2 f(\bm x\iter{k})\right]\inv$, which is the inverse of
+Hessian.
+Obviously, $\bm H\iter{k}$ plays a core role that affects the convergence rate
+of the method.
+The trade-off of the faster convergence rate of Newton's method goes more to
+the computation of the matrix inverse $(\nabla^2 f(\bm x\iter{k}))\inv$.
+Therefore people later started to pursue methods that use scaling matrices
+with properties as close as possible to the inverse of Hessian in a more
+efficient way.
+Here comes an important branch of gradient-based methods---quasi-Newton's
+methods.
+The idea is as follows: $(\nabla^2 f(\bm x\iter{k}))\inv$ can be approximated
+by using the mean-value theorem as
+\begin{equation}
+    \bm x\iter{k} - \bm x\iter{k-1} \approx
+    \underbrace{\left[\nabla^2f(\bm x\iter{k})\right]\inv}_{\bm H\iter{k}}
+    (\nabla f(\bm x\iter{k}) - \nabla f(\bm x\iter{k-1})),
+\end{equation}
+or equivalently,
+\begin{equation}
+    \underbrace{\nabla^2 f(\bm x\iter{k})}_{(\bm H\iter{k})\inv}
+    (\bm x\iter{k} - \bm x\iter{k-1})
+    \approx \nabla f(\bm x\iter{k}) - \nabla f(\bm x\iter{k-1}),
+    \label{eq:hessian_approx}
+\end{equation}
+which is called the secant condition when equality holds.
+Quasi-Newton's methods avoid direct computation of
+$(\nabla^2f(\bm x\iter{k}))\inv$ by searching a matrix $\bm H\iter{k}$ that
+approximately satisfies \eqref{eq:hessian_approx}.
+Motivated by the scaling matrices approach as quasi-Newton methods do,
+Barzilai and Borwein take $\xi\iter{k} = 1$ in \eqref{eq:BBGP_step1} and
+predefine a simple structure
+\begin{equation}
+    \bm H\iter{k} =
+    \beta\iter{k} \bm I =
+    \Pi_{[\beta_{\min},\beta_{\max}]} \left( \frac{1}{\eta\iter{k}} \right) \bm I
+\end{equation}
+for the scaling matrix and search for $\eta\iter{k}$ that best fits the secant
+condition in a $\ell_2$ norm sense.
+Mathematically, $\eta\iter{k}$ is chosen by
+\begin{equation}
+    \eta\iter{k} =
+    \begin{array}{cl}
+        \underset{\eta}{\min} &
+        g(\bm x\iter{k},\bm z\iter{k},\eta)
+    \end{array}
+    \label{eq:secant_condition}
+\end{equation}
+where
+\begin{equation}
+    g(\bm x,\bm y,\eta)
+    =
+    \Vert (\bm x-\bm y)\eta-(\nabla f(\bm x)-\nabla f(\bm y)) \Vert_2^2.
+\end{equation}
+In practice, with the extra computation cost, the performance is improved
+comparing with plain Gradient Projection Method in terms convergence rate
+\cite{BARZILAI_BORWEIN_ALGORITHM}.
+The idea is later extended to GP Method by Figueiredo \etal in
+\cite{GRAD_PROJ_FOR_SR_APPL_TO_CS_AND_INV_PROBLEMS}, and, in this thesis, is
+called Barzilai-Borwein Gradient Projection Method (BBGP).
+Still, we consider the BBGP for problem \eqref{eq:QP}.
+In each iteration, BBGP searches for both $\alpha\iter{k}$ and $\beta\iter{k}$,
+where $\alpha\iter{k}$ is obtained by exact line search, \ie by
+\eqref{eq:alpha_update} while $\beta\iter{k}$ is computed by solving
+\eqref{eq:secant_condition}.
+The derivation is shown below.
+\begin{subequations}
+\begin{eqnarray}
+    g(\bm x,\bm y,\eta)
+    & = &
+    \Vert ( \bm x - \bm y )\eta - (\nabla f(\bm x) - \nabla f(\bm y)) \Vert_2^2 \\
+    & = &
+    \Vert \bm x - \bm y \Vert_2^2 \eta^2
+    - 2 (\bm x - \bm y)\Tr (\nabla f(\bm x) - \nabla f(\bm y)) \eta \nonumber \\
+    &   &
+    + \Vert \nabla f(\bm x) - \nabla f(\bm y) \Vert_2^2 \\
+    & = &
+    \Vert \bm x - \bm y \Vert_2^2 \eta^2
+    - 2 (\bm x - \bm y)\Tr \bm R (\bm x - \bm y) \eta
+    + \Vert \bm R (\bm x - \bm y) \Vert_2^2, \\
+    \frac{{\rm d} g(\bm x,\bm y,\eta)}{{\rm d} \eta}
+    & = &
+    2 \Vert \bm x - \bm y \Vert_2^2 \eta - 2(\bm x - \bm y)\Tr \bm R (\bm x - \bm y).
+\end{eqnarray}
+\end{subequations}
+Solving $\displaystyle \frac{{\rm d} g(\bm x,\bm y,\eta)}{{\rm d} \eta} = 0$
+gives the solution of \eqref{eq:secant_condition}.
+\begin{equation}
+    \eta^* = \frac{(\bm x - \bm y)\Tr \bm R (\bm x - \bm y)}
+               {\Vert \bm x - \bm y \Vert_2^2}.
+\end{equation}
+Therefore by putting $\bm x = \bm x\iter{k}$ and $\bm y = \bm z\iter{k}$, we
+can find $\eta\iter{k}$, and thus $\beta\iter{k}$, by
+\begin{subequations}
+\begin{eqnarray}
+    \beta\iter{k}
+    & = &
+    \Pi_{[\beta_{\min},\beta_{\max}]} \left( \frac{1}{\eta\iter{k}} \right) \\
+    & = &
+    \min \left \{ \max \left \{
+                \frac{ \Vert \bm x\iter{k} - \bm z\iter{k} \Vert_2^2 }
+                     { (\bm x\iter{k} - \bm z\iter{k})\Tr
+                       \bm R (\bm x\iter{k} - \bm z\iter{k})}
+                , \beta_{\min} \right \} , \beta_{\max} \right \}.
+    \label{eq:beta_update}
+\end{eqnarray}
+\end{subequations}
+Note that if we fix $\alpha\iter{k}$ and only update $\beta\iter{k}$ then the
+objective value is not guaranteed to have monotonic decrease.
+By using the exact line search on $\alpha\iter{k}$ this property can be kept
+\cite{NONLINEAR_PRGM} where the convergence rate is as if in its unconstrained
+version \cite{GP_FOR_QP_APPL_SVM}.
+The BBGP algorithm that solves problem \eqref{eq:QP} is shown in Algorithm
+\ref{alg:BBGP_on_QP}.
+
+\begin{algorithm}
+    \caption{Gradient Projection (GP) Method (case a)}
+    \label{alg:GP_on_QP}
+    \begin{algorithmic}[1]
+        \Require{$\bm R$,
+                 $\bm q$,
+                 $\bm x\iter{0} \in \mathcal{X}$,
+                 $\beta > 0$.}
+        \smallskip
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+        \smallskip
+            \State{$\bm z\iter{k} \gets \Pi_{\mathcal X}
+                    (\bm x\iter{k} - \beta (\bm R\bm x\iter{k} + \bm q)$.}
+            \smallskip
+            \State{$\alpha\iter{k} \gets
+                    \Pi_{[0,1]} \left(
+                    \frac{(\bm x\iter{k} - \bm z\iter{k})\Tr
+                          (\bm R\bm x\iter{k} + \bm q)}
+                         {(\bm x\iter{k} - \bm z\iter{k})\Tr
+                          \bm R(\bm x\iter{k} - \bm z\iter{k})}
+                    \right)$
+                   \; \scriptsize \texttt{// solves }
+                   $\underset{\alpha \in[0,1]}{\min}
+                    f(\bm x\iter{k} + \alpha(\bm z\iter{k} - \bm x\iter{k}))$.}
+            \smallskip
+            \State{$\bm x\iter{k+1} \gets \bm x\iter{k} +
+                    \alpha\iter{k} (\bm z\iter{k} - \bm x\iter{k})$.}
+            \smallskip
+        \EndFor
+        \smallskip
+        \Ensure{$\bm x\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+    \caption{Barzilai-Borwein Gradient Projection (BBGP) Method (case c)}
+    \label{alg:BBGP_on_QP}
+    \begin{algorithmic}[1]
+        \Require{$\bm R$,
+                 $\bm q$,
+                 $\bm x\iter{0} \in \mathcal{X}$,
+                 $\beta\iter{0} \in [\beta_{\min},
+                 \beta_{\max}]$.}
+        \smallskip
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \smallskip
+            \smallskip
+            \State{$\bm z\iter{k} \gets \Pi_{\mathcal X}( \bm x\iter{k} -
+                    \beta\iter{k} (\bm R\bm x\iter{k} + \bm q))$.}
+            \smallskip
+            \smallskip
+            \State{$\alpha\iter{k} \gets
+                    \Pi_{[0,1]} \left(
+                    \frac{(\bm x\iter{k} - \bm z\iter{k})\Tr
+                          (\bm R\bm x\iter{k} + \bm q)}
+                         {(\bm x\iter{k} - \bm z\iter{k})\Tr
+                          \bm R(\bm x\iter{k} - \bm z\iter{k})}
+                    \right)$
+                   \; \scriptsize \texttt{// solves }
+                   $\underset{\alpha \in[0,1]}{\min}
+                    f(\bm x\iter{k} + \alpha(\bm z\iter{k} - \bm x\iter{k}))$.}
+            \smallskip
+            \smallskip
+            \State{$\bm x\iter{k+1} \gets \bm x\iter{k} +
+                    \alpha\iter{k} (\bm z\iter{k} - \bm x\iter{k})$.}
+            \smallskip
+            \smallskip
+            \State{$\eta\iter{k+1} \gets \frac{(\bm x\iter{k}-\bm z\iter{k})\Tr
+                    \bm R(\bm x\iter{k} - \bm z\iter{k})}
+                    {\Vert \bm x\iter{k} - \bm z\iter{k} \Vert_2^2}$
+                   \; \scriptsize \texttt{// solves }
+                   $\underset{\eta}{\min}
+                    \Vert(\bm x\iter{k}-\bm z\iter{k})\eta -
+                    (\nabla f(\bm x\iter{k})-\nabla f(\bm z\iter{k}))\Vert_2^2$.}
+            \smallskip
+            \State{$\beta\iter{k+1} \gets \Pi_{[\beta_{\min},\beta_{\max}]}
+                    \left( 1 / \eta\iter{k+1} \right)$.}
+            \smallskip
+        \EndFor
+        \smallskip
+        \Ensure{$\bm x\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{Proximal Gradient Method (PG)}
+Proximal Gradient Method (PG) is another branch of gradient-based method and
+is extensively used in this decade.
+Before providing details on PG, we first review the concept of prox-operator.
+Then we come to the details of PG in solving problem \eqref{eq:QP}.
+
+\subsubsection{Prox-operator}
+A prox-operator is an essence of PG.
+Given a convex function $h$, its prox-operator is defined as
+\begin{equation}
+    \texttt{prox}_h(\bm x) = \arg \; \underset{\bm u}{\min}
+    \left( h(\bm u) + \frac{1}{2} \Vert \bm u - \bm x \Vert_2^2 \right),
+    \label{eq:prox_operator}
+\end{equation}
+which searches a point $\bm u$ that decreases $h$ while $\bm u$ is not too far
+away from $\bm x$.
+The prox-operator \eqref{eq:prox_operator} is strongly convex so that it
+admits a unique solution.
+Note that we only require $h$ to be convex, \ie \,$h$ can be a
+nondifferentiable function like the $\ell_1$-norm of a vector, indicator
+function $\mathcal I_{\mathcal X}$ of a convex set $\mathcal X$.
+In the context of convex constrained QP, we take $h(\cdot)$ as the indicator
+function $\mathcal I_{\mathcal X}(\cdot)$.
+The definition of $\mathcal I_{\mathcal X}(\cdot)$ is restated below:
+\begin{equation}
+    \mathcal I_{\mathcal X} =
+    \begin{cases} 0,      & \bm x \in \mathcal X\\
+                  \infty, & \text{otherwise}.
+    \end{cases}
+\end{equation}
+It can be verified that
+\begin{equation}
+    \texttt{prox}_{\mathcal I_{\mathcal X}}(\bm x) = \Pi_{\mathcal X}(\bm x).
+\end{equation}
+Therefore the prox-operator is a generalization of convex set projection.
+Define $\bm x^*$ as a fixed point of \eqref{eq:prox_operator} such that
+\begin{equation}
+    \texttt{prox}_h(\bm x^*) = \bm x^*.
+    \label{eq:proximal_optimal_condition}
+\end{equation}
+An important property of prox-operator is that its fixed point is the
+minimizer of $h$.
+
+\subsubsection{PG in Solving QP}
+PG is a FOGM equipped with a prox-operator for handling constrained or
+nondifferentiable convex problems.
+Specifically, PG is capable of handling unconstrained problems of the form
+\begin{equation}
+    \underset{\bm x\in\R^n}{\min}\;F(\bm x)\;=\;\bm G(\bm x)+H(\bm x),
+\end{equation}
+where $G(\bm x)$ is convex and differentiable everywhere and $H(\bm x)$ is
+closed, convex and possibly nondifferentiable.
+They are widely applicable and have numerous applications especially in areas
+with large and high-dimensional data.
+Now we equivalently rewrite problem \eqref{eq:QP} as
+\begin{equation}
+    \underset{\bm x}{\min} \;
+    \displaystyle
+    \underbrace{\frac{1}{2} \bm x\Tr \bm R \bm x + \bm q\Tr \bm x}_{G(\bm x)}
+    + \underbrace{\mathcal I_{\mathcal X}(\bm x)}_{H(\bm x)}.
+    \label{eq:QP_prox_form}
+\end{equation}
+It is easy to verify that in \eqref{eq:QP_prox_form} $G(\bm x)$ is convex and
+differentiable while the $H(\bm x)$ is closed, convex and nondifferentiable.
+Given an initial point $\bm x\iter{0}$, the standard PG recursively computes
+\begin{subequations}
+\begin{eqnarray}
+    \bm x\iter{k+1}
+    & = &
+    \texttt{prox}_{\mathcal I_{\mathcal X}}
+    \left( \bm x\iter{k} - \beta\iter{k} \nabla f(\bm x\iter{k}) \right) \\
+    & = &
+    \Pi_{\mathcal X}
+    \left( \bm x\iter{k} - \beta\iter{k} \nabla f(\bm x\iter{k}) \right)
+\end{eqnarray}
+\end{subequations}
+where $\beta\iter{k}$ is a positive scalar.
+Here we see a connection between PG and GP --- in the context of QP and when
+we fix $\alpha\iter{k} = 1$ for all $k$ in \eqref{eq:GP_update}, PG is a
+special case of GP and the only difference goes to the choice of the inner
+stepsize $\beta\iter{k}$ in each iteration.
+
+There are two popular strategies of choosing $\beta\iter{k}$, namely by Armijo
+rule line search and by the reciprocal of fixed Lipschitz constant of the
+gradient.
+By using either strategies, we can see the PG Method as a case of GP Method:
+if we use Armijo rule line search for $\beta\iter{k}$, the PG is exactly the
+same as GP case b) (fixing outer stepsize and searching for inner stepsize);
+if we choose $\beta\iter{k}$ by using the reciprocal of a fixed Lipschitz
+constant, PG becomes GP in case d) (fixed both outer and inner stepsizes).
+
+In this thesis, the PG that we focus is the special case of GP using case d)
+approach.
+We first define the Lipschitz constant of a function.
+Then we come to the derivation of Lipschitz constant of the objective function
+in problem \eqref{eq:QP}.
+
+For all $\bm x_1$, $\bm x_2$ and any valid norm $\Vert \cdot \Vert$, a
+function $f$ is Lipschitz continuous in $L$ if
+\begin{equation}
+    \Vert f(\bm x_1) - f(\bm x_2) \Vert \leq L \Vert \bm x_1 - \bm x_2 \Vert
+\end{equation}
+and Lipschitz smooth in $L$ if
+\begin{equation}
+    \Vert \nabla f(\bm x_1) - \nabla f(\bm x_2) \Vert \leq
+    L \Vert \bm x_1 - \bm x_2 \Vert.
+    \label{eq:Lipschitz_smooth}
+\end{equation}
+Usually the smallest possible value of $L$ of a function is of the most
+interest.
+To find $L$ of gradient of $f$ in problem \eqref{eq:QP}, we consider
+\eqref{eq:Lipschitz_smooth} using $\ell_2$ norm and by mean value theorem we
+have
+%We show the derivation of $L$ of $f$ in problem \eqref{eq:QP}.
+%From \eqref{eq:Lipschitz_smooth}, we get
+\begin{subequations}
+\begin{eqnarray}
+    \nabla f(\bm x_1) - \nabla f(\bm x_2)
+    & = &
+    \nabla^2 f(\bm x_m)\Tr (\bm x_1 - \bm x_2) \\
+    \Vert \nabla f(\bm x_1) - \nabla f(\bm x_2) \Vert_2
+    & = &
+    \Vert \nabla^2 f(\bm x_m)\Tr (\bm x_1 - \bm x_2) \Vert_2 \\
+    & \leq &
+    \Vert \nabla^2 f(\bm x_m) \Vert_2 \Vert \bm x_1 - \bm x_2 \Vert_2,
+\end{eqnarray}
+\end{subequations}
+where $\bm x_m$ is a point between $\bm x_1$ and $\bm x_2$.
+Our aim is to find an upper bound of $\Vert \nabla^2 f(\bm x) \Vert_2$, \ie
+find $L$ such that for all $\bm x$,
+\begin{equation}
+    \Vert \nabla^2 f(\bm x) \Vert_2 \leq L.
+\end{equation}
+Since $f$ is a quadratic function, the Hessian of $f$ is the PSD matrix
+$\bm R$ of $f$, leaving us
+\begin{equation}
+    L = \Vert \bm R \Vert_2 = \lambda_{\max}(\bm R),
+    \label{eq:QP_Lipschitz}
+\end{equation}
+where $\lambda_{\max}(\cdot)$ denotes the largest eigenvalue of the argument.
+When $\bm R$ is a big matrix, as encountered in problem
+\eqref{eq:HSR_s-subproblem_expandedform} and
+\eqref{eq:HSR_a-subproblem_expandedform}, the eigendecomposition of the system
+matrix may become formidable by general algorithms.
+In this case alternative computation of $L$ or exploring efficient formula of
+$L$ should be considered so it can be computed more effectively.
+
+Since $\bm R$ is unchanged throughout the iterative computation, $L$ is a
+fixed positive constant.
+By setting $\beta\iter{k} = \beta \in (0,2/L)$, for all $k$, the
+convergence of the PG method is guaranteed
+\cite{PROX_ALGO,
+      PROX_SPLIT_METHODS_IN_SIGPROC}.
+Since a large amount of movement in each iteration is preferred, $2/L$ should
+be the best choice although traditionally $1/L$ is a more popular choice.
+The convergence rate is sublinear for general convex problems, and is linear
+for strongly convex problems.
+The PG algorithm that solves problem \eqref{eq:QP} is shown in Algorithm
+\ref{alg:PG_on_QP}.
+
+\begin{algorithm}
+    \caption{Proximal Gradient (PG) Method}
+    \label{alg:PG_on_QP}
+    \begin{algorithmic}[1]
+        \Require{$\bm R$,
+                 $\bm q$,
+                 $\bm x\iter{0} \in \mathcal{X}$.}
+        \smallskip
+        \State{$L = \lambda_{\max}(\bm R)$.}
+        \smallskip
+        \State{$\beta = 1/L$.}
+        \smallskip
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \smallskip
+            \State{$\bm x\iter{k+1} \gets \Pi_{\mathcal X}
+                    \left(\bm x\iter{k}-\beta(\bm R \bm x\iter{k} + \bm q)\right)$.}
+            \smallskip
+        \EndFor
+        \smallskip
+        \Ensure{$\bm x\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{Fast Proximal Gradient Method (FISTA)} \label{sec:QP_by_FISTA}
+FISTA is a more superior PG-type method in terms of runtime performance.
+The Fast or sometimes called Accelerated PG was firstly proposed by Nesterov
+in 1983
+\cite{NESTEROV_FISTA}
+and was later popularized by Beck and Teboulle in 2009
+\cite{A_FAST_ITERA_SHRINK_THRESH_ALGO}.
+Similar to PG, a positive scalar constant $\beta$ is also required but the
+suitable range becomes $(0,1/L]$.
+Also, the recursive computation of the decision variable does not directly
+reuse the result of the previous iteration.
+Instead, FISTA recursively computes the following in each iteration:
+\begin{subequations}
+\begin{eqnarray}
+    \bm x\iter{k+1}
+    & = &
+    \texttt{prox}_{\mathcal I_{\mathcal X}}
+    \left( \bm z\iter{k} - \beta \nabla f(\bm z\iter{k}) \right), \\
+    \bm z\iter{k}
+    & = &
+    \bm x\iter{k} + \frac{\mu\iter{k}-1}{\mu\iter{k+1}}
+    ( \bm x\iter{k} - \bm x\iter{k-1} ), \\
+    \mu\iter{k+1}
+    & = &
+    \frac{1+\sqrt{1+4{\mu\iter{k}}^2}}{2},
+\end{eqnarray}
+\end{subequations}
+where $\bm z\iter{k}$ is sometimes called an extrapolation point, which is
+determined from two previous computed points.
+The initial setting of FISTA is $\mu\iter{0} = 0$ and
+$\bm x\iter{-1} = \bm x\iter{0}$.
+
+An inspiring result of FISTA is that, with trivial extra computation, it
+achieves an improved convergence rate of $\mathcal O(1/k^2)$ theoretically.
+This is the core reason why FISTA becomes so popular.
+The FISTA algorithm that solves problem \eqref{eq:QP} is shown in Algorithm
+\ref{alg:FISTA_on_QP}
+
+\begin{algorithm}
+    \caption{Fast Proximal Gradient Method (FISTA)}
+    \label{alg:FISTA_on_QP}
+    \begin{algorithmic}[1]
+        \Require{$\bm R$,
+                 $\bm q$,
+                 $\bm x\iter{0} \in \mathcal{X}$.}
+        \smallskip
+        \State{$L \gets \lambda_{\max}(\bm R)$.}
+        \smallskip
+        \State{$\beta \gets 1/L$.}
+        \smallskip
+        \State{$\mu\iter{0} \gets 0$, $\bm x\iter{-1} \gets \bm x\iter{0}$.}
+        \smallskip
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \smallskip
+            \State{$\mu\iter{k+1} \gets \displaystyle\frac{1}{2}\left(1+\sqrt{1+4{\mu\iter{k}}^2}\right)$.}
+            \smallskip
+            \State{$\bm z\iter{k} \gets \bm x\iter{k} +
+                    \left[(\mu\iter{k}-1)/\mu\iter{k+1}\right]
+                    (\bm x\iter{k} - \bm x\iter{k-1})$.}
+            \smallskip
+            \State{$\bm x\iter{k+1} \gets \Pi_{\mathcal X}
+                    \left(\bm z\iter{k} - \beta(\bm R \bm z\iter{k} + \bm q)\right)$.}
+            \smallskip
+        \EndFor
+        \smallskip
+        \Ensure{$\bm x\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{Frank-Wolfe Method (FW)} \label{sec:QP_by_FW}
+FW, sometimes called Conditional Gradient Method in other literatures, firstly
+appeared in a paper by Frank and Wolfe in 1956
+\cite{FRANKWOLFE_AN_ALGO_FOR_QUAD_PRGM}.
+Over the years, FW has seen a revival thanks to its ability to handle
+optimization problems with structured convex constraints in areas with big
+data.
+FW is computationally cheap when the problem is convex and has differentiable
+objective.
+A principal property of FW is its projection-free nature.
+Given a starting point, the standard FW recursively computes
+\begin{equation}
+    \bm x\iter{k+1} = \bm x\iter{k} + \alpha\iter{k}(\bm z\iter{k} - \bm x\iter{k}),
+    \label{eq:FW_update}
+\end{equation}
+where
+\begin{subequations}
+\begin{eqnarray}
+    \bm z\iter{k}
+    & = &
+    \texttt{LMO}_{\mathcal X}\left( \nabla f(\bm x\iter{k}) \right)\\
+    & \coloneqq &
+    \arg \; \underset{\bm z \in \mathcal X}{\min} \;
+    \nabla f(\bm x\iter{k})\Tr (\bm z - \bm x\iter{k})
+\end{eqnarray}
+\end{subequations}
+is called the linear minimization orcale (LMO) of $\nabla f(\bm x\iter{k})$ on
+the convex set $\mathcal X$ and $\alpha\iter{k}$ is the stepsize in the
+$k\thtxt$ iteration.
+An intuitive observation of using \texttt{LMO} is as follows.
+Recall that in convex optimization a necessary and sufficient condition for
+$\bm x^*$ being a global minimizer of $f$ is
+\begin{equation}
+    \nabla f(\bm x^*)\Tr (\bm x - \bm x^*) \geq 0,
+    \;\;\; \forall \; \bm x \in \mathcal X,
+\end{equation}
+which is called the first order optimality condition and the equality holds
+whenever $\bm x = \bm x^*$.
+By knowing this, FW forces $\bm x\iter{k}$ to update along a direction that
+violates the inequality most, hoping that the updated point $\bm x\iter{k+1}$
+reaches the global optimum.
+
+Specifically, FW finds a LMO (a direction) of $\bm x\iter{k}$ within
+$\mathcal X$ and then comes up with a new point $\bm x\iter{k+1}$ that is
+along the path between $\bm x\iter{k}$ and the LMO.
+By this update scheme, $\bm x\iter{k+1}$ is guaranteed to reside in
+$\mathcal X$ due to its convexity, avoiding projection onto $\mathcal X$.
+
+Note that each LMO is found by solving a linear program (LP) on $\mathcal X$.
+When $\mathcal X$ is a polyhedron, at least one of the vertices of
+$\mathcal X$ belongs tothe solution set.
+Generally, LMO requires trivial computational resource compared with
+projection operations.
+Taking cases  relevant to the HSR problem, $\mathcal X$ may become one of the
+following:
+%
+%LMO can be computed by solving a linear program (LP).
+%Since in this thesis we mainly consider polyhedron convex sets, the LP
+%solution (the LMO) can be found in at least one of the vertex of the set.
+%We consider the following cases:
+\begin{itemize}
+    \item when $\mathcal X = [0,1]^n$, we have
+        \begin{equation}
+            \texttt{LMO}_{\mathcal X}(\bm y) =
+            \begin{bmatrix} \sgn{y_i} \end{bmatrix}_{i=1}^n,
+        \end{equation}
+        where $\sgn{x} = \begin{cases} 1, & x < 0 \\ 0, & x \geq 0; \end{cases}$
+    \item when $\mathcal X = \triangle^n$, we have
+        \begin{equation}
+            \texttt{LMO}_{\mathcal X}(\bm y) = \bm e_h,
+        \end{equation}
+        where $\bm e_h$ is a unit vector whose $h\thtxt$ element is active;
+        $h$ is chosen such that $y_h \leq y_i, \; \forall \; i$.
+    \item when $\mathcal X = \R_+^n$, the situation is a bit subtle ---
+          $\mathcal X$ is a non-polyhedral convex set.
+          Since the optimal $\bm x^*$ must be bounded, we may take a heuristic
+          but reasonable replacement of $\R_+^n$ by $[0,U]^n$, where $U$ is
+          significantly large.
+          The remains are the same as then case when $\mathcal X = [0,1]^n$.
+\end{itemize}
+FW requires light computation in both $\nabla f(\bm x)$ and
+$\texttt{LMO}_{\mathcal X} \left[\nabla f (\bm x)\right]$ in order to benefit
+from the light complexity of FW in each iteration.
+Thanks to the QP structure of $f$ and the aforementioned convex sets
+$\mathcal X$, the LMO here fulfills both requirement.
+This advantage becomes more significant when the dimension of the data
+$n$ increases and the corresponding projections are heavily decided by the
+dimension.
+
+Frank and Wolfe have shown that FW has monotonic convergence
+\cite{FRANKWOLFE_AN_ALGO_FOR_QUAD_PRGM}.
+Beck and Teboulle later showed that it has a sublinear convergence rate in
+general and a linear convergence rate if the objective is strongly convex and
+if the optimal point is in the strict interior of the constraint set
+\cite{COND_GRAD_LIN_CONVERG_RATE_BECK2004}.
+
+Unlike GP and PG Methods, Armijo rule line search of $\alpha\iter{k}$ in
+\eqref{eq:FW_update} is unsuitable for FW because the searching arc (the path
+between $\bm x\iter{k}$ and $\bm z\iter{k}$) is not along the steepest descent
+direction.
+Nevertheless, a decreasing stepsize like $\alpha\iter{k} = 2/(k+2)$ or a
+stepsize obtained from exact line search are still applicable.
+In our QP case, exact line search scheme is more preferable.
+The FW algorithm that solves problem \eqref{eq:QP} is shown in Algorithm
+\ref{alg:FW_on_QP}.
+
+\begin{algorithm}
+    \caption{Frank-Wolfe Method (FW)}
+    \label{alg:FW_on_QP}
+    \begin{algorithmic}[1]
+        \Require{$\bm R$,
+                 $\bm q$,
+                 $\bm x\iter{0} \in \mathcal{X}$.}
+        \smallskip
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \smallskip
+            \State{$\gamma\iter{k} \gets \bm R \bm x\iter{k} + \bm q$
+                   \; \scriptsize \texttt{// computes }
+                   $\nabla f(\bm x\iter{k})$.}
+            \smallskip
+            \State{$\bm v\iter{k} \gets \texttt{LMO}_{\mathcal X}(\bm \gamma\iter{k})$
+                   \; \scriptsize \texttt{// solves }
+                   $\underset{\bm v \in \mathcal X}{\min} \;
+                    \bm v\Tr \bm \gamma\iter{k}$.}
+            \smallskip
+            \State{$\alpha\iter{k} \gets
+                    \Pi_{[0,1]} \left(
+                    \frac{(\bm x\iter{k} - \bm v\iter{k})\Tr
+                          (\bm R\bm x\iter{k} + \bm q)}
+                         {(\bm x\iter{k} - \bm v\iter{k})\Tr
+                          \bm R(\bm x\iter{k} - \bm v\iter{k})}
+                    \right)$
+                   \; \scriptsize \texttt{// solves }
+                   $\underset{\alpha \in[0,1]}{\min}
+                    f(\bm x\iter{k} + \alpha(\bm v\iter{k} - \bm x\iter{k}))$.}
+            \smallskip
+            \State{$\bm x\iter{k+1} \gets \bm x\iter{k} +
+                    \alpha\iter{k}(\bm v\iter{k} - \bm x\iter{k})$.}
+            \smallskip
+        \EndFor
+        \smallskip
+        \Ensure{$\bm x\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\section{Proposed Algorithm Framework for HSR:\\
+         ALternating Gradient-based Optimization (ALGO)}
+Our attention returns to the nonconvex HSR problem \eqref{eq:HSR_problem_CH3}.
+Problem \eqref{eq:HSR_problem_CH3} has convex constrained quadratic
+subproblems so that we can tackle the problem by AO in a BCD manner.
+Let us denote the objective function of \eqref{eq:HSR_s-subproblem} and
+\eqref{eq:HSR_a-subproblem} as $f_s(\bm A,\bm s)$ and $f_a(\bm a,\bm S)$,
+respectively.
+We present a traditional algorithm framework of \textit{Exact BCD} to solve
+problem \eqref{eq:HSR_problem_CH3} in Algorithm
+\ref{alg:GEN_FRAMEWORK_OF_HSR_BY_FOGM_EXACT_BCD}.
+\begin{algorithm}
+    \caption{Algorithm Framework of HSR via \textit{Exact BCD} by FOGM}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_FOGM_EXACT_BCD}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$.}
+        \smallskip
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \smallskip
+            \State{$\bm s\iter{k,0} \gets \vectxt{\bm S\iter{k}}$,
+                   $\bm a\iter{k,0} \gets \vectxt{\bm A\iter{k}}$.}
+            \smallskip
+            \Statex{\texttt{// S subproblem}}
+            \smallskip
+            %\For{$j=1,2,\cdots$ until stopping criteria holds}
+            \For{$j=1,2,\cdots,J$}% or until stopping criteria holds}
+                \smallskip
+                \State{$\bm s\iter{k,j} \gets
+                        \texttt{FOGM\_Upd}%_{\bm s}
+                        (f_s(\bm A\iter{k},\bm s\iter{k,j-1}))$.}
+                \smallskip
+            \EndFor
+            \smallskip
+            \State{$\bm S\iter{k+1} \gets \texttt{reshape}(\bm s\iter{k,J})$.}
+            \smallskip
+            \Statex{\texttt{// A subproblem}}
+            \smallskip
+            %\For{$j=1,2,\cdots$ until stopping criteria holds}
+            \For{$j=1,2,\cdots,J$}% or until stopping criteria holds}
+                \smallskip
+                \State{$\bm a\iter{k,j} \gets
+                        \texttt{FOGM\_Upd}%_{\bm a}
+                        (f_a(\bm a\iter{k,j-1},\bm S\iter{k+1}))$.}
+                \smallskip
+            \EndFor
+            \smallskip
+            \State{$\bm A\iter{k+1} \gets \texttt{reshape}(\bm a\iter{k,J})$.}
+            \smallskip
+        \EndFor
+        \smallskip
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+From the algorithm, the $\bm S$ and $\bm A$ subproblems are \textit{exactly}
+solved by a gradient method.
+$\texttt{FOGM\_Upd}(\cdot)$ refers to a first order gradient method update
+such that in practice it can be replaced either by $\texttt{GP\_Upd}(\cdot)$,
+$\texttt{BBGP\_Upd}(\cdot)$, $\texttt{PG\_Upd}(\cdot)$,
+$\texttt{FISTA\_Upd}(\cdot)$, $\texttt{FW\_Upd}(\cdot)$, or any other FOGMs.
+Typically, in order to solve the subproblems \textit{exactly} or to certain
+exactness, the gradient update should be repeated many times, \ie $J$ should
+be sufficiently large.
+A drawback is that whenever $J$ is large, the requires much runtime to finish
+an iteration of BCD.
+
+In this thesis, we propose ALGO, an algorithm framework of \textit{inexact BCD}
+for solving problem \eqref{eq:HSR_problem_CH3}.
+Specifically, we use small value $J$, with an extreme case as taking $J = 1$,
+to conduct \textit{inexact solving of the subproblems}, \ie \textit{Inexact BCD}.
+The algorithm flow is similar to that in Algorithm
+\ref{alg:GEN_FRAMEWORK_OF_HSR_BY_FOGM_EXACT_BCD} except that both $\bm S$ and
+$\bm A$ subproblems are briefly solved by a one-time gradient update.
+The algorithm of the proposed ALGO is presented in Algorithm
+\ref{alg:GEN_FRAMEWORK_OF_HSR_BY_FOGM_INEXACT_BCD}.
+\begin{algorithm}
+    \caption{ALGO (Algorithm Framework of HSR via \textit{Inexact BCD} by FOGM)}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_FOGM_INEXACT_BCD}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$.}
+        \smallskip
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \smallskip
+            \State{$\bm s\iter{k} \gets \vectxt{\bm S\iter{k}}$,
+                   $\bm a\iter{k} \gets \vectxt{\bm A\iter{k}}$.}
+            \smallskip
+            \Statex{\texttt{// S subproblem}}
+            \smallskip
+            %\State{$\bm s\iter{k+1} \gets
+            %        \texttt{FOGM\_Upd}%_{\bm s}
+            %        (f_s(\bm A\iter{k},\bm s\iter{k}))$.}
+            %\smallskip
+            %\State{$\bm S\iter{k+1} \gets \texttt{reshape}(\bm s\iter{k+1})$.}
+            \State{$\bm S\iter{k+1} \gets \texttt{reshape} \left(
+                    \texttt{FOGM\_Upd}%_{\bm s}
+                    (f_s(\bm A\iter{k},\bm s\iter{k})) \right)$.}
+            \smallskip
+            \Statex{\texttt{// A subproblem}}
+            \smallskip
+            %\State{$\bm a\iter{k+1} \gets
+            %        \texttt{FOGM\_Upd}%_{\bm a}
+            %        (f_a(\bm a\iter{k},\bm S\iter{k+1}))$.}
+            %\smallskip
+            %\State{$\bm A\iter{k+1} \gets \texttt{reshape}(\bm a\iter{k+1})$.}
+            \State{$\bm A\iter{k+1} \gets \texttt{reshape} \left(
+                    \texttt{FOGM\_Upd}%_{\bm a}
+                    (f_a(\bm a\iter{k},\bm S\iter{k+1})) \right)$.}
+            \smallskip
+        \EndFor
+        \smallskip
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+We present the detailed implementation of ALGO using each discussed FOGM in
+the remaining of this chapter.
+In the algorithm description, we present a generalized ALGO algorithm that one
+can decide the exactness of the subproblems in the BCD by assigning $J$ with
+suitable value.
+A large $J$ enforces the HSR algorithms to employ exact BCD while a small $J$
+enforces the HSR algorithms to employ inexact BCD.
+
+\subsection{ALGO using GP}
+\begin{algorithm}[H]
+    \caption{ALGO using GP}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_GP}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$,
+                 $\beta_S, \beta_A > 0$.}
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \Statex{\texttt{// S-subproblem}}
+            \State{$\bm S\iter{k,0} \gets \bm S\iter{k}$, $\bm A \gets \bm A\iter{k}$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_S\iter{k,j-1} \gets
+                        \bm A\Tr\left(\bm A\bm S\iter{k,j-1}\bm G - \YH\right)\bm G\Tr
+                        +(\bm F\bm A)\Tr\left(\bm F\bm A\bm S\iter{k,j-1} - \YM\right)$.}
+                \State{$\bm Z_S\iter{k,j-1} \gets \Pi_{\mathcal S}
+                                \left(\bm S\iter{k,j-1} - \beta_S \bm \Gamma_S\iter{k,j-1}\right)$.}
+                \State{$\alpha_S^* \gets
+                        \frac{\langle\;\YH-\bm A\bm S\iter{k,j-1}\bm G \;,\;
+                                       \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G\;\rangle +
+                              \langle\;\YM-\bm F\bm A\bm S\iter{k,j-1} \;,\;
+                                       \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\;\rangle}
+                             {\Vert \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G \Vert\Fr^2 +
+                              \Vert \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1}) \Vert\Fr^2}$.}
+                \State{$\alpha_S\iter{k,j-1} \gets \min(\max(\alpha_S^*,0),1)$.}
+                \State{$\bm S\iter{k,j} \gets \bm S\iter{k,j-1} +
+                        \alpha_S\iter{k,j-1}\left( \bm Z_S\iter{k,j-1} - \bm S\iter{k,j-1} \right)$.}
+            \EndFor
+            \State{$\bm S\iter{k+1} \gets \bm S\iter{k,J}$.}
+            \Statex{\texttt{// A-subproblem}}
+            \State{$\bm A\iter{k,0} \gets \bm A\iter{k}$, $\bm S \gets \bm S\iter{k+1}.$}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_A\iter{k,j-1} \gets
+                        \left(\bm A\iter{k,j-1}\bm S\bm G - \YH\right)(\bm S\bm G)\Tr +
+                        \bm F\Tr\left(\bm F\bm A\iter{k,j-1}\bm S - \YM\right) \bm S\Tr$.}
+                \State{$\bm Z_A\iter{k,j-1} \gets
+                        \Pi_{\mathcal A}\left(\bm A\iter{k,j-1} - \beta_A\bm \Gamma_A\iter{k,j-1}\right)$.}
+                \State{$\alpha_A^* \gets
+                        \frac{\langle\;\YH-\bm A\iter{k,j-1}\bm S\bm G\;,\;(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j})\bm S\bm G\;\rangle +
+                              \langle\;\YM-\bm F\bm A\iter{k,j-1}\bm S\;,\;\bm F(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\;\rangle}
+                             {\Vert(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\bm G\Vert\Fr^2 +
+                              \Vert\bm F(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\Vert\Fr^2}$.}
+                \State{$\alpha_A\iter{k,j-1} \gets \min(\max(\alpha_A^*,0,1))$.}
+                \State{$\bm A\iter{k,j} \gets \bm A\iter{k,j-1} +
+                        \alpha_A\iter{k,j-1}\left( \bm Z_A\iter{k,j-1} - \bm A\iter{k,j-1} \right)$.}
+            \EndFor
+            \State{$\bm A\iter{k+1} \gets \bm A\iter{k,J}$.}
+        \EndFor
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{ALGO using BBGP}
+\begin{algorithm}[H]
+    \caption{ALGO using BBGP}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_BBGP}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$,
+                 $\beta_S, \beta_A \in [\beta_{\min},\beta_{\max}]$.}
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \Statex{\texttt{// S-subproblem}}
+            \State{$\bm S\iter{k,0} \gets \bm S\iter{k}$, $\bm A = \bm A\iter{k}$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_S\iter{k,j-1} \gets
+                        \bm A\Tr\left(\bm A\bm S\iter{k,j-1}\bm G - \YH\right)\bm G\Tr
+                        +(\bm F\bm A)\Tr\left(\bm F\bm A\bm S\iter{k,j-1} - \YM\right)$.}
+                \State{$\bm Z_S\iter{k,j-1} \gets \Pi_{\mathcal S}
+                        \left(\bm S\iter{k,j-1} -
+                        \beta_S\iter{k,j-1} \bm \Gamma_S\iter{k,j-1}\right)$.}
+                \State{$\alpha_S^* \gets
+                        \frac{\langle\;\YH-\bm A\bm S\iter{k,j-1}\bm G \;,\;
+                                       \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G\;\rangle +
+                              \langle\;\YM-\bm F\bm A\bm S\iter{k,j-1} \;,\;
+                                       \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\;\rangle}
+                             {\Vert \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G \Vert\Fr^2 +
+                              \Vert \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1}) \Vert\Fr^2}$.}
+                \State{$\alpha_S\iter{k,j-1} \gets \min(\max(\alpha_S^*,0),1)$.}
+                \State{$\bm S\iter{k,j} \gets \bm S\iter{k,j-1} +
+                        \alpha_S\iter{k,j-1}\left( \bm Z_S\iter{k,j-1} - \bm S\iter{k,j-1} \right)$.}
+                \State{$\eta_S\iter{k,j-1} \gets
+                        \frac{\Vert \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G \Vert\Fr^2 +
+                              \Vert \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1}) \Vert\Fr^2}
+                             {\Vert \bm Z_S\iter{k,j-1} - \bm S\iter{k,j-1} \Vert\Fr^2}$.}
+                \State{$\beta_S\iter{k,j} \gets \min\left(\max\left(1/\eta_S\iter{k,j-1},\beta_{\min}\right),\beta_{\max}\right)$.}
+            \EndFor
+            \State{$\bm S\iter{k+1} \gets \bm S\iter{k,J}$.}
+            \Statex{\texttt{// A-subproblem}}
+            \State{$\bm A\iter{k,0} \gets \bm A\iter{k}$, $\bm S = \bm S\iter{k+1}.$}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_A\iter{k,j-1} \gets
+                        \left(\bm A\iter{k,j-1}\bm S\bm G - \YH\right)(\bm S\bm G)\Tr +
+                        \bm F\Tr\left(\bm F\bm A\iter{k,j-1}\bm S - \YM\right) \bm S\Tr$.}
+                \State{$\bm Z_A\iter{k,j-1} \gets
+                        \Pi_{\mathcal A}\left(\bm A\iter{k,j-1} -
+                        \beta_A\iter{k,j-1}\bm \Gamma_A\iter{k,j-1}\right)$.}
+                \State{$\alpha_A^* \gets
+                        \frac{\langle\;\YH-\bm A\iter{k,j-1}\bm S\bm G\;,\;(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\bm G\;\rangle +
+                              \langle\;\YM-\bm F\bm A\iter{k,j-1}\bm S\;,\;\bm F(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\;\rangle}
+                             {\Vert(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\bm G\Vert\Fr^2 +
+                              \Vert\bm F(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\Vert\Fr^2}$.}
+                \State{$\alpha_A\iter{k,j-1} \gets \min(\max(\alpha_A^*,0,1))$.}
+                \State{$\bm A\iter{k,j} \gets \bm A\iter{k,j-1} +
+                        \alpha_A\iter{k,j-1}( \bm Z_A\iter{k,j-1} - \bm A\iter{k,j-1} )$.}
+                \State{$\eta_A\iter{k,j-1} \gets
+                        \frac{\Vert(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\bm G\Vert\Fr^2 +
+                              \Vert\bm F(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\Vert\Fr^2}
+                             {\Vert\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1}\Vert\Fr^2}$.}
+                \State{$\beta_A\iter{k,j} \gets \min\left(\max\left(1/\eta_A\iter{k,j-1},\beta_{\min}\right),\beta_{\max}\right)$.}
+            \EndFor
+            \State{$\bm A\iter{k+1} \gets \bm A\iter{k,J}$.}
+        \EndFor
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{ALGO using PG}
+PG requires the objective function to be Lipschitz smooth with constant $L$.
+In this section we first derive the Lipschitz constant of
+$\nabla_{\bm s} f_s(\bm A,\bm s)$ and $\nabla_{\bm a} f_a(\bm a,\bm S)$ as
+$L_S$ and $L_A$, respectively.
+
+Recall that $f_s(\bm A,\bm s)=\frac{1}{2}\Vert\bm y-\bm H_S\bm s\Vert_2^2$
+indicates $L_S = \lambda_{\max}(\bm H_S\Tr \bm H_S)$, where
+\begin{equation}
+    \bm H_S\Tr \bm H_S
+    =
+    (\bm G \bm G\Tr) \otimes (\bm A\Tr \bm A) + \bm I_L \otimes ((\bm F\bm A)\Tr \bm F \bm A)
+    %\begin{bmatrix} \bm G\Tr \otimes \bm A \\
+    %                \bm I_L  \otimes \bm F \bm A
+    %\end{bmatrix}
+\end{equation}
+is a big matrix so that the maximum eigenvalue computation with complexity of
+$\mathcal O((NL)^3)$ is impractical.
+Nevertheless by exploiting the structure of $\bm H_S$ the complexity of
+computing $L_S$ can be greatly reduced.
+The derivation is as follows.
+Let the SVD of $\bm G$ be
+\begin{equation}
+    \bm G = \bm U_G \bm \Sigma_G \bm V_G\Tr
+\end{equation}
+such that $\bm U_G \in \R^{L \times L}$,
+$\bm \Sigma_G \in \R^{L \times L_\text H}$ and
+$\bm V_G \in \R^{L_\text H \times L_\text H}$.
+We can write
+\begin{subequations}
+\begin{eqnarray}
+    \bm H_S
+    & = &
+    \begin{bmatrix}
+        (\bm V_G         \otimes \bm I_M)
+        (\bm \Sigma_G\Tr \otimes \bm A  )
+        (\bm U_G\Tr      \otimes \bm I_N) \\
+        \bm I_L \otimes \bm F \bm A
+    \end{bmatrix} \\
+    & = &
+    \underbrace{
+    \begin{bmatrix} \bm V_G \otimes \bm I_M & \\ & \bm I_{M_ML} \end{bmatrix}
+    }_{\bm Q_1}
+    \begin{bmatrix}
+        (\bm \Sigma_G\Tr \otimes \bm A)(\bm U_G\Tr \otimes \bm I_N) \\
+        \bm I_L \otimes \bm F \bm A
+    \end{bmatrix} \\
+    & = &
+    \bm Q_1
+    \underbrace{
+    \begin{bmatrix}
+        \bm \Sigma_G\Tr \otimes \bm A \\ \bm U_G \otimes \bm F \bm A
+    \end{bmatrix}
+    }_{\tilde{\bm H}_S}
+    \underbrace{
+    \bm U_G\Tr \otimes \bm I_N
+    }_{\bm Q_2},
+\end{eqnarray}
+\end{subequations}
+where $\bm Q_1$ and $\bm Q_2$ are othonormal so that the expression
+\begin{equation}
+    \bm H_S = \bm Q_1 \tilde{\bm H}_S \bm Q_2
+\end{equation}
+indicates that $\bm H_S$ and $\tilde{\bm H}_S$ share the same set of singular
+values.
+Also, let $\bm C_1 = \bm A\Tr\bm A$, $\bm C_2 = (\bm F\bm A)\Tr(\bm F\bm A)$
+and $\sigma_{G,1} \geq \cdots \geq \sigma_{G,L_\text H}$, we can see that,
+\begin{subequations}
+\begin{eqnarray}
+    \tilde{\bm H}_S\Tr \tilde{\bm H}_S
+    & = &
+    (\bm \Sigma_G \bm \Sigma_G\Tr) \otimes (\bm A\Tr\bm A) +
+    \bm I_L \otimes ((\bm F\bm A)\Tr \bm F\bm A) \\
+    & = &
+    \begin{bmatrix}
+        \sigma_{G,1}^2 \bm C_1 + \bm C_2 & & & & & \\
+        & \ddots & & & & \\
+        & & \sigma_{G,L_\text H}^2 \bm C_1 + \bm C_2 & & & \\
+        & & & \bm C_2 & & \\
+        & & & & \ddots & \\
+        & & & & & \bm C_2
+    \end{bmatrix},
+\end{eqnarray}
+\end{subequations}
+which shows the largest singular value of $\tilde{\bm H}_S$ is
+\begin{subequations}
+\begin{eqnarray}
+    \sigma_{\max}(\tilde{\bm H}_S)
+    & = &
+    \sqrt{\lambda_{\max}(\tilde{\bm H}_S\Tr\tilde{\bm H}_S)} \\
+    & = &
+    \sqrt{\lambda_{\max}(\sigma_{G,1}^2 \bm A\Tr\bm A +
+                         (\bm F\bm A)\Tr\bm F\bm A)},
+\end{eqnarray}
+\end{subequations}
+where $\sigma_{\max}(\cdot)$ and $\lambda_{\max}(\cdot)$ denote the largest
+singular and largest eigenvalue of its argument, respectively.
+This concludes that
+\begin{subequations}
+\begin{eqnarray}
+    L_S
+    & = &
+    \sigma_{\max}(\bm H_S)^2 \\
+    & = &
+    \sigma_{\max}(\tilde{\bm H}_S)^2 \\
+    & = &
+    \lambda_{\max}(\sigma_{G,1}^2 \bm A\Tr\bm A + (\bm F\bm A)\Tr \bm F\bm A),
+\end{eqnarray}
+\end{subequations}
+where the eigendecomposition complexity is $\mathcal O(N^3)$.
+
+A similar derivation can be applied to the Lipschitz constant analysis of
+$\nabla_{\bm a}f_a(\bm a,\bm S)$.
+The simplified formula of $L_A$ is
+\begin{equation}
+    L_A = \lambda_{\max}(\sigma_{F,1}^2 \bm S\bm S\Tr + \bm S\bm G(\bm S\bm G)\Tr),
+\end{equation}
+where $\sigma_{F,1}$ denotes the largest singular value of $\bm F$ and the
+total computation complexity is also $\mathcal O(N^3)$.
+
+\begin{algorithm}[H]
+    \caption{ALGO using PG}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_PG}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$.}
+        \State{$\theta_G \gets \sigma_{\max}(\bm G)^2$, $\theta_F \gets \sigma_{\max}(\bm F)^2$.}
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \Statex{\texttt{// S-subproblem}}
+            \State{$\bm S\iter{k,0} \gets \bm S\iter{k}$, $\bm A \gets \bm A\iter{k}$.}
+            \State{$L_S \gets \lambda_{\max}(\theta_G \bm A\Tr \bm A +
+                    (\bm F\bm A)\Tr\bm F\bm A)$.}
+            \State{$\beta_S \gets 1/L_S$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_S\iter{k,j-1} \gets
+                        \bm A\Tr(\bm A\bm S\iter{k,j-1}\bm G - \YH)\bm G\Tr
+                        +(\bm F\bm A)\Tr(\bm F\bm A\bm S\iter{k,j-1} - \YM)$.}
+                \State{$\bm S\iter{k,j} \gets \Pi_{\mathcal S}
+                        \left(\bm S\iter{k,j-1} - \beta_S \bm \Gamma_S\iter{k,j-1}\right)$.}
+            \EndFor
+            \State{$\bm S\iter{k+1} \gets \bm S\iter{k,J}$.}
+            \Statex{\texttt{// A-subproblem}}
+            \State{$\bm A\iter{k,0} \gets \bm A\iter{k}$, $\bm S \gets \bm S\iter{k+1}.$}
+            \State{$L_A \gets \lambda_{\max}(\theta_F \bm S\bm S\Tr + \bm S\bm G(\bm S\bm G)\Tr)$.}
+            \State{$\beta_A \gets 1/L_A$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_A\iter{k,j-1} \gets
+                        (\bm A\iter{k,j-1}\bm S\bm G - \YH)(\bm S\bm G)\Tr +
+                        \bm F\Tr(\bm F\bm A\iter{k,j-1}\bm S - \YM) \bm S\Tr$.}
+                \State{$\bm A\iter{k,j} \gets \Pi_{\mathcal A}
+                        \left(\bm A\iter{k,j-1} - \beta_A \bm \Gamma_A\iter{k,j-1}\right)$.}
+            \EndFor
+            \State{$\bm A\iter{k+1} \gets \bm A\iter{k,J}$.}
+        \EndFor
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{ALGO using FISTA}
+\begin{algorithm}[H]
+    \caption{ALGO using FISTA}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_FISTA}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$.}
+        \State{$\bm S\iter{-1} \gets \bm S\iter{0}$, $\bm A\iter{-1} \gets \bm A\iter{0}$.}
+        \State{$\theta_G \gets \sigma_{\max}(\bm G)^2$,
+               $\theta_F \gets \sigma_{\max}(\bm F)^2$,
+               $\mu \gets 0$, $\phi \gets 0$.}
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \Statex{\texttt{// S-subproblem}}
+            \State{$\bm S\iter{k,0} \gets \bm S\iter{k}$,
+                   $\bm S\iter{k,-1} \gets \bm S\iter{k-1}$,
+                   $\bm A \gets \bm A\iter{k}$.}
+            \State{$L_S \gets \lambda_{\max}\left(\theta_G \bm A\Tr \bm A +
+                    (\bm F\bm A)\Tr\bm F\bm A\right)$.}
+            \State{$\beta_S \gets 1/L_S$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\mu' \gets \frac{1}{2}\left(1+\sqrt{1+4\mu^2}\right)$.}
+                \State{$\bm Z_S\iter{k,j-1} \gets \bm S\iter{k,j-1} +
+                        \frac{\mu'-1}{\mu} \bm S\iter{k,j-2}$.}
+                \State{$\bm \Gamma_S\iter{k,j-1} \gets
+                        \bm A\Tr(\bm A\bm Z_S\iter{k,j-1}\bm G - \YH)\bm G\Tr
+                        +(\bm F\bm A)\Tr(\bm F\bm A\bm Z_S\iter{k,j-1} - \YM)$.}
+                \State{$\bm S\iter{k,j} \gets \Pi_{\mathcal S}
+                        \left(\bm S\iter{k,j-1} - \beta_S \bm \Gamma_S\iter{k,j-1}\right)$.}
+                \State{$\mu \gets \mu'$.}
+            \EndFor
+            \State{$\bm S\iter{k+1} \gets \bm S\iter{k,J}$.}
+            \Statex{\texttt{// A-subproblem}}
+            \State{$\bm A\iter{k,0} \gets \bm A\iter{k}$,
+                   $\bm A\iter{k,-1} \gets \bm A\iter{k-1}$
+                   $\bm S \gets \bm S\iter{k+1}.$}
+            \State{$L_A \gets \lambda_{\max}\left(\theta_F \bm S\bm S\Tr + \bm S\bm G(\bm S\bm G)\Tr\right)$.}
+            \State{$\beta_A \gets 1/L_A$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\phi' \gets \frac{1}{2}\left(1+\sqrt{1+4\phi^2}\right)$.}
+                \State{$\bm Z_A\iter{k,j-1} \gets \bm A\iter{k,j-1} +
+                        \frac{\phi'-1}{\phi} \bm A\iter{k,j-2}$.}
+                \State{$\bm \Gamma_A\iter{k,j-1} \gets
+                        (\bm Z_A\iter{k,j-1}\bm S\bm G - \YH)(\bm S\bm G)\Tr +
+                        \bm F\Tr(\bm F\bm Z_A\iter{k,j-1}\bm S - \YM) \bm S\Tr$.}
+                \State{$\bm A\iter{k,j} \gets \Pi_{\mathcal A}
+                        \left(\bm A\iter{k,j-1} - \beta_A \bm \Gamma_A\iter{k,j-1}\right)$.}
+                \State{$\phi \gets \phi'$.}
+            \EndFor
+            \State{$\bm A\iter{k+1} \gets \bm A\iter{k,J}$.}
+        \EndFor
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{ALGO using FW}
+\begin{algorithm}[H]
+    \caption{ALGO using FW}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_FW}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$.}
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \Statex{\texttt{// S-subproblem}}
+            \State{$\bm S\iter{k,0} \gets \bm S\iter{k}$, $\bm A \gets \bm A\iter{k}$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_S\iter{k,j-1} \gets
+                        \bm A\Tr(\bm A\bm S\iter{k,j-1}\bm G - \YH)\bm G\Tr
+                        +(\bm F\bm A)\Tr(\bm F\bm A\bm S\iter{k,j-1} - \YM)$.}
+                \State{$\bm Z_S\iter{k,j-1} \gets
+                        \texttt{LMO}_{\mathcal S}\left(\bm \Gamma_S\iter{k,j-1}\right)$.}
+                \State{$\alpha_S^* \gets
+                        \frac{\langle\;\YH-\bm A\bm S\iter{k,j-1}\bm G \;,\;
+                                       \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G\;\rangle +
+                              \langle\;\YM-\bm F\bm A\bm S\iter{k,j-1} \;,\;
+                                       \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\;\rangle}
+                             {\Vert \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G \Vert\Fr^2 +
+                              \Vert \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1}) \Vert\Fr^2}$.}
+                \State{$\alpha_S\iter{k,j-1} \gets \min\left(\max\left(\alpha_S^*,0\right),1\right)$.}
+                \State{$\bm S\iter{k,j} \gets \bm S\iter{k,j-1} +
+                        \alpha_S\iter{k,j-1}( \bm Z_S\iter{k,j-1} - \bm S\iter{k,j-1} )$.}
+            \EndFor
+            \State{$\bm S\iter{k+1} \gets \bm S\iter{k,J}$.}
+            \Statex{\texttt{// A-subproblem}}
+            \State{$\bm A\iter{k,0} \gets \bm A\iter{k}$, $\bm S \gets \bm S\iter{k+1}.$}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_A\iter{k,j-1} \gets
+                        (\bm A\iter{k,j-1}\bm S\bm G - \YH)(\bm S\bm G)\Tr +
+                        \bm F\Tr(\bm F\bm A\iter{k,j-1}\bm S - \YM) \bm S\Tr$.}
+                \State{$\bm Z_A\iter{k,j-1} \gets
+                        \texttt{LMO}_{\mathcal A}\left(\bm \Gamma_A\iter{k,j-1}\right)$.}
+                \State{$\alpha_A^* \gets
+                        \frac{\langle\;\YH-\bm A\iter{k,j-1}\bm S\bm G\;,\;(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j})\bm S\bm G\;\rangle +
+                              \langle\;\YM-\bm F\bm A\iter{k,j-1}\bm S\;,\;\bm F(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\;\rangle}
+                             {\Vert(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\bm G\Vert\Fr^2 +
+                              \Vert\bm F(\bm Z_A\iter{k,j-1}-\bm A\iter{k,j-1})\bm S\Vert\Fr^2}$.}
+                \State{$\alpha_A\iter{k,j-1} \gets \min\left(\max\left(\alpha_A^*,0,1\right)\right)$.}
+                \State{$\bm A\iter{k,j} \gets \bm A\iter{k,j-1} +
+                        \alpha_A\iter{k,j-1}\left( \bm Z_A\iter{k,j-1} - \bm A\iter{k,j-1} \right)$.}
+            \EndFor
+            \State{$\bm A\iter{k+1} \gets \bm A\iter{k,J}$.}
+        \EndFor
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
+
+\newpage
+\subsection{ALGO using Hybrid BCD Method}
+ALGO using Hybrid BCD Method is a heuristic and hybrid approach in the sense
+that the subproblems can be handled by different kind of FOGMs.
+The motivation behind is that when certain kind of FOGM can gain advantages in
+terms of computation efficiency in some certain subproblems, our customized
+choice of FOGMs for each subproblem further improves the efficiency of ALGO.
+
+Take the HSR problem as example.
+When the pixel number of HS and MS images grows
+larger, the projection operation becomes more expensive, requiring much
+computation time per each iteration.
+In this thesis we allow ALGO using Hybrid BCD Method to employ FW in the
+$\bm S$ subproblem and FISTA in the $\bm A$ subproblem, hoping that the
+runtime performance can have improvement.
+\begin{algorithm}[H]
+    \caption{ALGO using Hybrid BCD}
+    \label{alg:GEN_FRAMEWORK_OF_HSR_BY_HYBRID}
+    \begin{algorithmic}[1]
+        \Require{$\YH$,
+                 $\YM$,
+                 $\bm F$,
+                 $\bm G$,
+                 $\bm S\iter{0}\in\mathcal S$,
+                 $\bm A\iter{0}\in\mathcal A$.}
+        \State{$\bm A\iter{-1} \gets \bm A\iter{0}$.}
+        \State{$\theta_F \gets \sigma_{\max}(\bm F)^2$,
+               $\phi \gets 0$.}
+        \For{$k=0,1,2,\cdots$ until stopping criteria holds}
+            \Statex{\texttt{// S-subproblem}}
+            \State{$\bm S\iter{k,0} \gets \bm S\iter{k}$, $\bm A \gets \bm A\iter{k}$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\bm \Gamma_S\iter{k,j-1} \gets
+                        \bm A\Tr(\bm A\bm S\iter{k,j-1}\bm G - \YH)\bm G\Tr
+                        +(\bm F\bm A)\Tr(\bm F\bm A\bm S\iter{k,j-1} - \YM)$.}
+                \State{$\bm Z_S\iter{k,j-1} \gets
+                        \texttt{LMO}_{\mathcal S}\left(\bm \Gamma_S\iter{k,j-1}\right)$.}
+                \State{$\alpha_S^* \gets
+                        \frac{\langle\;\YH-\bm A\bm S\iter{k,j-1}\bm G \;,\;
+                                       \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G\;\rangle +
+                              \langle\;\YM-\bm F\bm A\bm S\iter{k,j-1} \;,\;
+                                       \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\;\rangle}
+                             {\Vert \bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1})\bm G \Vert\Fr^2 +
+                              \Vert \bm F\bm A(\bm Z_S\iter{k,j-1}-\bm S\iter{k,j-1}) \Vert\Fr^2}$.}
+                \State{$\alpha_S\iter{k,j-1} \gets \min\left(\max\left(\alpha_S^*,0\right),1\right)$.}
+                \State{$\bm S\iter{k,j} \gets \bm S\iter{k,j-1} +
+                        \alpha_S\iter{k,j-1}( \bm Z_S\iter{k,j-1} - \bm S\iter{k,j-1} )$.}
+            \EndFor
+            \State{$\bm S\iter{k+1} \gets \bm S\iter{k,J}$.}
+            \Statex{\texttt{// A-subproblem}}
+            \State{$\bm A\iter{k,0} \gets \bm A\iter{k}$,
+                   $\bm A\iter{k,-1} \gets \bm A\iter{k-1}$
+                   $\bm S \gets \bm S\iter{k+1}.$}
+            \State{$L_A \gets \lambda_{\max}\left(\theta_F \bm S\bm S\Tr + \bm S\bm G(\bm S\bm G)\Tr\right)$.}
+            \State{$\beta_A \gets 1/L_A$.}
+            \For{$j=1,2,\cdots,J$}
+                \State{$\phi' \gets \frac{1}{2}\left(1+\sqrt{1+4\phi^2}\right)$.}
+                \State{$\bm Z_A\iter{k,j-1} \gets \bm A\iter{k,j-1} +
+                        \frac{\phi'-1}{\phi} \bm A\iter{k,j-2}$.}
+                \State{$\bm \Gamma_A\iter{k,j-1} \gets
+                        (\bm Z_A\iter{k,j-1}\bm S\bm G - \YH)(\bm S\bm G)\Tr +
+                        \bm F\Tr(\bm F\bm Z_A\iter{k,j-1}\bm S - \YM) \bm S\Tr$.}
+                \State{$\bm A\iter{k,j} \gets \Pi_{\mathcal A}
+                        \left(\bm A\iter{k,j-1} - \beta_A \bm \Gamma_A\iter{k,j-1}\right)$.}
+                \State{$\phi \gets \phi'$.}
+            \EndFor
+            \State{$\bm A\iter{k+1} \gets \bm A\iter{k,J}$.}
+        \EndFor
+        \Ensure{$\bm S\iter{k+1}$, $\bm A\iter{k+1}$.}
+    \end{algorithmic}
+\end{algorithm}
