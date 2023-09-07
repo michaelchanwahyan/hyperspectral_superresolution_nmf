@@ -1,0 +1,28 @@
+Tue Jul 11 14:24:24 HKT 2017
+/home/pikachu/Dropbox/HYPERSPEC/TGRS/experiments/MATLAB/64_TGRS_EXPT04_FUMI_REALIMG_MVES_WAY/cuprite1997_200x348/MO16/200x348/DS4
+model order: 9
+number of trials: 100
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+SNR  & Method                           & SAM(HSI)                             & PSNR(HSI)                            & time                                     
+(dB) &                                  & (deg)                                & (dB)                                 & (sec)                                    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+40   & FUMI(A,S<1e-3)                   & \cellcolor{blue!15}{$1.03\pm 0.03$}  & \cellcolor{blue! 5}{$43.03\pm 0.19$} & \cellcolor{blue!15}{$1269.38\pm 252.42$} 
+40   & MFbA FISTA(1 It)                 & \cellcolor{red! 15}{$1\pm 0.02$}     & \cellcolor{red! 15}{$43.38\pm 0.11$} & \cellcolor{red! 15}{$26.3\pm 2.98$}      
+40   & MFbA FW(1 It)                    & \cellcolor{blue! 5}{$1.03\pm 0.02$}  & \cellcolor{blue!15}{$43\pm 0.13$}    & \cellcolor{red!  5}{$39.62\pm 4.06$}     
+40   & MFbA HYBRID_S_FW1_A_FISTA1(1 It) & \cellcolor{red!  5}{$1.02\pm 0.02$}  & \cellcolor{red!  5}{$43.15\pm 0.16$} & \cellcolor{blue! 5}{$61.38\pm 19.56$}    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+30   & FUMI(A,S<1e-3)                   & \cellcolor{blue! 5}{$1.97\pm 0.09$}  & \cellcolor{blue! 5}{$36.08\pm 0.33$} & \cellcolor{blue!15}{$1150.41\pm 280.43$} 
+30   & MFbA FISTA(1 It)                 & \cellcolor{blue!15}{$2.04\pm 0.05$}  & \cellcolor{blue!15}{$35.85\pm 0.17$} & \cellcolor{red!  5}{$17.22\pm 1.81$}     
+30   & MFbA FW(1 It)                    & \cellcolor{red! 15}{$1.82\pm 0.03$}  & \cellcolor{red! 15}{$36.63\pm 0.12$} & \cellcolor{red! 15}{$14.2\pm 1.4$}       
+30   & MFbA HYBRID_S_FW1_A_FISTA1(1 It) & \cellcolor{red!  5}{$1.93\pm 0.06$}  & \cellcolor{red!  5}{$36.23\pm 0.22$} & \cellcolor{blue! 5}{$28.8\pm 8.49$}      
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+20   & FUMI(A,S<1e-3)                   & \cellcolor{blue!15}{$6.6\pm 0.17$}   & \cellcolor{blue!15}{$25.64\pm 0.2$}  & \cellcolor{blue!15}{$1575.23\pm 331.09$} 
+20   & MFbA FISTA(1 It)                 & \cellcolor{blue! 5}{$5.15\pm 0.18$}  & \cellcolor{blue! 5}{$27.46\pm 0.29$} & \cellcolor{red!  5}{$11.68\pm 1.06$}     
+20   & MFbA FW(1 It)                    & \cellcolor{red! 15}{$4.52\pm 0.06$}  & \cellcolor{red! 15}{$28.39\pm 0.1$}  & \cellcolor{red! 15}{$8.02\pm 0.71$}      
+20   & MFbA HYBRID_S_FW1_A_FISTA1(1 It) & \cellcolor{red!  5}{$5.07\pm 0.07$}  & \cellcolor{red!  5}{$27.6\pm 0.11$}  & \cellcolor{blue! 5}{$13.09\pm 3.13$}     
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+10   & FUMI(A,S<1e-3)                   & \cellcolor{blue!15}{$19.35\pm 0.32$} & \cellcolor{blue!15}{$16.08\pm 0.12$} & \cellcolor{blue!15}{$1026.9\pm 247.47$}  
+10   & MFbA FISTA(1 It)                 & \cellcolor{blue! 5}{$15.91\pm 0.21$} & \cellcolor{blue! 5}{$17.76\pm 0.11$} & \cellcolor{blue! 5}{$8.31\pm 0.85$}      
+10   & MFbA FW(1 It)                    & \cellcolor{red! 15}{$12.93\pm 0.14$} & \cellcolor{red! 15}{$19.53\pm 0.1$}  & \cellcolor{red! 15}{$6.32\pm 0.6$}       
+10   & MFbA HYBRID_S_FW1_A_FISTA1(1 It) & \cellcolor{red!  5}{$14.62\pm 0.24$} & \cellcolor{red!  5}{$18.4\pm 0.12$}  & \cellcolor{red!  5}{$7.68\pm 1.73$}      
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
