@@ -1,0 +1,5 @@
+convert      IM_CNMF_SAM.png            IM_CNMF_SAM.eps
+convert      IM_DRFUMI_SAM.png          IM_DRFUMI_SAM.eps
+convert      IM_HySure_SAM.png          IM_HySure_SAM.eps
+convert      IM_MFbA_FISTA_SAM.png      IM_MFbA_FISTA_SAM.eps
+convert      IM_MFbA_HYBRID_SAM.png     IM_MFbA_HYBRID_SAM.eps
